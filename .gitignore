@@ -2,5 +2,6 @@
 *.csv
 *.pyc
 *.png
-**/__pycache__venv/
+**/__pycache__
+venv/
 __pycache__/
