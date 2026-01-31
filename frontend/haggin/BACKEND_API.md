@@ -124,10 +124,10 @@ HTTP status codes:
 Set the backend URL in `.env`:
 
 ```bash
-VITE_BACKEND_URL=http://localhost:5000
+VITE_BACKEND_URL=http://localhost:5001
 ```
 
-Or it defaults to `http://localhost:5000` if not set.
+Or it defaults to `http://localhost:5001` if not set.
 
 ## CORS Configuration
 
@@ -150,7 +150,7 @@ app.use(cors({ origin: 'http://localhost:5175' }));
 ## Testing the API
 
 ```bash
-curl "http://localhost:5000/generate-positions?situation=counter%20attack"
+curl "http://localhost:5001/generate-positions?situation=counter%20attack"
 ```
 
 Expected response should match the JSON format above with valid coordinates and IDs.
@@ -189,5 +189,5 @@ def generate_positions():
     })
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    app.run(port=5001)
 ```

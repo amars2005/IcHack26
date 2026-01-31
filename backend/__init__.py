@@ -196,6 +196,7 @@ Return ONLY valid JSON with this structure (no markdown, no code blocks, no expl
 Ensure coordinates reflect the tactical situation described, formation requirements, and phase of play.
 """
 
+
 def start_app():
     app = Flask(__name__)
     CORS(app, origins=["http://localhost:5173", "http://localhost:5175"])
@@ -265,12 +266,15 @@ def start_app():
 
             try:
                 # Remove markdown code blocks if present
-                clean_content = raw_content.replace('```json', '').replace('```', '').strip()
+                clean_content = raw_content.replace(
+                    '```json', '').replace('```', '').strip()
                 clean_json = json.loads(clean_content)
 
                 # VALIDATION: Ensure all 22 players are present
-                required_attacker_ids = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"]
-                required_defender_ids = ["d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11"]
+                required_attacker_ids = [
+                    "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"]
+                required_defender_ids = [
+                    "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11"]
 
                 attackers = clean_json.get("attackers", [])
                 defenders = clean_json.get("defenders", [])
@@ -279,8 +283,10 @@ def start_app():
                 defender_ids = [p["id"] for p in defenders]
 
                 # Check if all required IDs are present
-                missing_attackers = [id for id in required_attacker_ids if id not in attacker_ids]
-                missing_defenders = [id for id in required_defender_ids if id not in defender_ids]
+                missing_attackers = [
+                    id for id in required_attacker_ids if id not in attacker_ids]
+                missing_defenders = [
+                    id for id in required_defender_ids if id not in defender_ids]
 
                 if missing_attackers or missing_defenders:
                     error_msg = f"Missing players - Attackers: {missing_attackers}, Defenders: {missing_defenders}"
