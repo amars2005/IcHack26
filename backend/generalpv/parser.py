@@ -8,7 +8,6 @@ THREESIXTY_URL = "https://raw.githubusercontent.com/statsbomb/open-data/master/d
 
 class MatchParser:
     def __init__(self, match_id, max_players=20):
-    def __init__(self, match_id, max_players=20):
         self.match_id = match_id
         self.max_players = max_players
         
