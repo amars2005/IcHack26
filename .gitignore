@@ -1,2 +1,3 @@
 /kagglehub
 .env
+**/__pycache__/
