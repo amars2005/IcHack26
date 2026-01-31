@@ -30,14 +30,14 @@ def start_app():
 
             # generations
             import numpy as np
-            xT = np.rand(12)
-            p_success = np.rand(12)
+            xT = np.random.rand(12)
+            p_success = np.random.rand(12)
             action = np.random.choice(
                 ["pass", "carry", "shoot"], size=12
             )
 
             evaluations = {action[i]: {
-                "xT": xT[i], "P(success)": p_success[i]} for i in range(len(data))}
+                "xT": xT[i], "P(success)": p_success[i]} for i in range(12)}
             return json.dumps(evaluations, indent=4)
 
     return app
