@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type React from 'react';
 import { motion } from 'framer-motion';
 import type { Player as PlayerType } from '../types';
 import { COLORS, PLAYER_RADIUS, PLAYER_RING_OFFSET } from '../constants';

@@ -14,6 +14,7 @@ type MenuBarProps = {
   onLoadPreset: (preset: Preset) => void;
   onGenerateCustom: (situation: string) => Promise<void>;
   generationStatus: GenerationStatus;
+  aiRefusalMessage?: string | null;
 };
 
 export function MenuBar({
@@ -25,6 +26,7 @@ export function MenuBar({
   onLoadPreset,
   onGenerateCustom,
   generationStatus
+  , aiRefusalMessage
 }: MenuBarProps) {
   const [customSituation, setCustomSituation] = useState('');
   const attackers = players.filter((p) => p.type === 'attacker');
@@ -177,7 +179,7 @@ export function MenuBar({
             </div>
           )}
 
-          {generationStatus === 'error' && (
+          {generationStatus === 'error' && !aiRefusalMessage && (
             <div style={{
               marginTop: '8px',
               padding: '8px',
@@ -190,6 +192,26 @@ export function MenuBar({
             }}>
               <span style={{ fontSize: '16px' }}>✗</span>
               <span>Generation failed. Check backend connection.</span>
+            </div>
+          )}
+
+          {/* AI refusal (inappropriate prompt) message */}
+          {aiRefusalMessage && (
+            <div style={{
+              marginTop: '8px',
+              padding: '8px',
+              background: '#92400e',
+              borderRadius: '4px',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span style={{ fontSize: '16px' }}>⚠</span>
+              <div>
+                <div style={{ fontWeight: '600' }}>AI refused to answer</div>
+                <div style={{ fontSize: '12px', color: '#fde68a' }}>{aiRefusalMessage}</div>
+              </div>
             </div>
           )}
         </div>
