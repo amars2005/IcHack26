@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Player } from '../types';
+import type { Player, XTResult } from '../types';
 import type { Preset } from '../presets';
 import type { GenerationStatus } from '../types';
 import { COLORS } from '../constants';
@@ -14,6 +14,9 @@ type MenuBarProps = {
   onLoadPreset: (preset: Preset) => void;
   onGenerateCustom: (situation: string) => Promise<void>;
   generationStatus: GenerationStatus;
+  onCalculateXT: () => Promise<void>;
+  xTResult: XTResult | null;
+  xTLoading: boolean;
 };
 
 export function MenuBar({
@@ -24,7 +27,10 @@ export function MenuBar({
   onBallCarrierChange,
   onLoadPreset,
   onGenerateCustom,
-  generationStatus
+  generationStatus,
+  onCalculateXT,
+  xTResult,
+  xTLoading,
 }: MenuBarProps) {
   const [customSituation, setCustomSituation] = useState('');
   const attackers = players.filter((p) => p.type === 'attacker');
@@ -242,6 +248,57 @@ export function MenuBar({
           </div>
         </div>
 
+
+        {/* Calculate xT Section */}
+        <div style={{ marginBottom: '24px' }}>
+          <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Expected Threat (xT)</h3>
+          <button
+            onClick={onCalculateXT}
+            disabled={xTLoading}
+            style={{
+              padding: '12px',
+              background: xTLoading ? '#6b7280' : '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: xTLoading ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              width: '100%',
+              opacity: xTLoading ? 0.6 : 1,
+            }}
+          >
+            {xTLoading ? 'Calculating...' : 'Calculate xT'}
+          </button>
+
+          {xTResult && (
+            <div style={{
+              marginTop: '12px',
+              padding: '12px',
+              background: xTResult.error ? '#7f1d1d' : '#065f46',
+              borderRadius: '4px',
+              fontSize: '13px',
+            }}>
+              {xTResult.error ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '16px' }}>✗</span>
+                  <span>{xTResult.error}</span>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>xT Value:</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                    {typeof xTResult === 'number' 
+                      ? xTResult.toFixed(4)
+                      : typeof xTResult.xT === 'number'
+                        ? xTResult.xT.toFixed(4)
+                        : JSON.stringify(xTResult, null, 2)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Instructions */}
         <div style={{ fontSize: '12px', color: '#9ca3af', lineHeight: '1.6' }}>

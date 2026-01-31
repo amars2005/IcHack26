@@ -3,15 +3,26 @@ import { Pitch } from './components/Pitch';
 import { MenuBar } from './components/MenuBar';
 import type { Player } from './types';
 import type { Preset } from './presets';
-import type { GenerationStatus } from './types';
+import type { GenerationStatus, XTResult } from './types';
 import { INITIAL_PLAYERS, INITIAL_BALL_CARRIER, PITCH_WIDTH, PITCH_HEIGHT } from './constants';
 import { generateSituation } from './llm';
+import { usePitchState } from './hooks';
 
 function App() {
   const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
   const [menuOpen, setMenuOpen] = useState(false);
   const [ballCarrier, setBallCarrier] = useState(INITIAL_BALL_CARRIER);
   const [generationStatus, setGenerationStatus] = useState<GenerationStatus>('idle');
+  const [xTResult, setXTResult] = useState<XTResult | null>(null);
+  const [xTLoading, setXTLoading] = useState(false);
+  const {
+    pitchState,
+    updatePlayerPosition,
+    setBallId,
+    setPositions,
+    resetPositions,
+    getApiPayload,
+  } = usePitchState();
 
   const handlePlayerMove = (id: string, x: number, y: number) => {
     // Clamp position to pitch boundaries
@@ -24,7 +35,6 @@ function App() {
       )
     );
   };
-
 
   const handleLoadPreset = (preset: Preset) => {
     setPlayers(preset.players);
@@ -63,6 +73,38 @@ function App() {
     availableHeight / PITCH_HEIGHT
   );
 
+  const handleCalculateXT = async () => {
+    setXTLoading(true);
+    setXTResult(null);
+    try {
+      const payload = getApiPayload();
+      console.log('Sending payload:', payload);
+      const response = await fetch('http://localhost:5001/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      console.log('xT Result:', result);
+      setXTResult(result);
+    } catch (error) {
+      console.error('xT calculation error:', error);
+      setXTResult({ error: 'Failed to calculate xT' });
+    } finally {
+      setXTLoading(false);
+    }
+  };
+
+  const handleGeneratePositions = async (situation: string) => {
+    const response = await fetch(
+      `http://localhost:5001/generate-positions?situation=${encodeURIComponent(situation)}`
+    );
+    const data = await response.json();
+    if (data.attackers && data.defenders && data.ball_id) {
+      setPositions(data.attackers, data.defenders, data.ball_id);
+    }
+  };
+
   return (
     <div
       style={{
@@ -91,6 +133,9 @@ function App() {
         onLoadPreset={handleLoadPreset}
         onGenerateCustom={handleGenerateCustom}
         generationStatus={generationStatus}
+        onCalculateXT={handleCalculateXT}
+        xTResult={xTResult}
+        xTLoading={xTLoading}
       />
     </div>
   );

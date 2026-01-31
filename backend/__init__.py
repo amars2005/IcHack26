@@ -201,12 +201,14 @@ Ensure coordinates reflect the tactical situation described, formation requireme
 
 def start_app():
     app = Flask(__name__)
-    CORS(app, origins=["http://localhost:5173", "http://localhost:5175"])
+    CORS(app, origins=["http://localhost:5173",
+         "http://localhost:5175"], supports_credentials=True)
 
     @app.route("/", methods=["POST"])
     def predictions():
         if request.method == "POST":
             data = request.get_json()
+            print(data)
 
             if not data:
                 return {"error": "No data provided"}, 400
@@ -215,6 +217,7 @@ def start_app():
             attackers = data.get("attackers", [])
             defenders = data.get("defenders", [])
             keepers = data.get("keepers", [])
+            print(attackers)
 
             ball_id = data["ball_id"]
             ball_position = next(
@@ -231,7 +234,7 @@ def start_app():
                 "ball_y": ball_position['y'],
             }
 
-            for i in range(11):  #  for 11 players
+            for i in range(10):  #  for 11 players
                 data_dict[f"p_{i}_x"] = attackers[i]["x"]
                 data_dict[f"p_{i}_y"] = attackers[i]["y"]
                 data_dict[f'p_{i}_team'] = 1  # attacker
@@ -250,7 +253,7 @@ def start_app():
             # keeper for team in entry [1]
             data_dict[f'keeper_2_team'] = 0  # defender keeper
 
-            from generalpv.expectedThreatModel import ExpectedThreatModel
+            from backend.generalpv.expectedThreatModel import ExpectedThreatModel
             xT = ExpectedThreatModel()
             xT.load_model(os.path.join(os.path.dirname(
                 __file__), "models/xT_model.pkl"))
