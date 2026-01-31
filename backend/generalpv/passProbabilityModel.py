@@ -12,40 +12,38 @@ class passProbabilityModel(BaseModel):
         self.filepath = filepath
         df_encoded, features = self.load_and_prep()
         
-        super().__init__(df=df_encoded, feature_names=features, output='chain_goal')
+        super().__init__(df=df_encoded, feature_names=features, output='success')
 
     def load_and_prep(self):
         print("Loading and Engineering 360 Features...")
         df = pd.read_csv(self.filepath)
 
-        # 1. Ball Spatial Features
-        df['dist_to_goal'] = np.sqrt((120 - df['start_x'])**2 + (40 - df['start_y'])**2)
-        df['angle_to_goal'] = np.arctan2(40 - df['start_y'], 120 - df['start_x'])
-
-        # 2. Relative 360 Features (Distance and Angle)
         player_feats = []
-        # Dynamically find how many p{i}_x columns exist
-        p_count = len([c for c in df.columns if c.endswith('_x') and c.startswith('p')])
         
-        for i in range(p_count):
-            px, py, pt = f'p{i}_x', f'p{i}_y', f'p{i}_team'
-            
-            dist_col = f'p{i}_rel_dist'
-            ang_col = f'p{i}_rel_ang'
-            
-            # Distance: sqrt((px-bx)^2 + (py-by)^2)
-            df[dist_col] = np.where(df[px] != -1,
-                np.sqrt((df[px] - df['start_x'])**2 + (df[py] - df['start_y'])**2), -1)
-            # Angle: atan2(py-by, px-bx)
-            df[ang_col] = np.where(df[px] != -1,
-                np.arctan2(df[py] - df['start_y'], df[px] - df['start_x']), -1)
-            
-            player_feats.extend([dist_col, ang_col, pt])
+        # Count unique opponent indices (columns are 1-indexed: opp_1_dist, opp_2_dist, etc.)
+        opp_count = len([c for c in df.columns if c.endswith('_dist') and c.startswith('opp_')])
+        
+        for i in range(1, opp_count + 1):
+            opp_dist_col = f'opp_{i}_dist'
+            opp_angle_col = f'opp_{i}_angle'
+
+            player_feats.extend([opp_dist_col, opp_angle_col])
+
+        # Count unique teammate indices (columns are 1-indexed: tm_1_dist, tm_2_dist, etc.)
+        tm_count = len([c for c in df.columns if c.endswith('_dist') and c.startswith('tm_')])
+
+        for i in range(1, tm_count + 1):
+            tm_dist_col = f'tm_{i}_dist'
+            tm_angle_col = f'tm_{i}_angle'
+            player_feats.extend([tm_dist_col, tm_angle_col])
+
+        # Add ball end features
+        player_feats.extend(['ball_end_dist', 'ball_end_angle'])
 
         df = df[df['type'] == 'Pass']
 
-        # 4. Final Feature Selection
-        features = ['start_x', 'start_y', 'dist_to_goal', 'angle_to_goal'] + player_feats
+        # Final Feature Selection
+        features = ['dist_to_goal'] + player_feats
         
         # Clean numeric data for LightGBM
         for col in features:
@@ -53,9 +51,10 @@ class passProbabilityModel(BaseModel):
                 df[col] = -1
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(-1)
 
-        
-
         return df, features
+
+        print("Loading and Engineering 360 Features...")
+        df = pd.read_csv(self.filepath)
 
     def run_pipeline(self):
         """Helper to train and visualize in one go."""
