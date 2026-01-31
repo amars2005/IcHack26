@@ -50,6 +50,14 @@ class BaseModel():
         print(f"ROC AUC Score: {auc:.3f}")
         print(f"Brier Score: {brier:.3f}")
         
+        # Show feature importance
+        importance_df = pd.DataFrame({
+            'feature': features,
+            'importance': self.model.feature_importances_
+        }).sort_values('importance', ascending=False)
+        print(f"\n--- Top 15 Feature Importances ---")
+        print(importance_df.head(15).to_string(index=False))
+        
         # Apply to whole dataset
         all_probs = self.model.predict_proba(df[features])[:, 1]
         df['pred_value'] = all_probs
@@ -98,56 +106,86 @@ class BaseModel():
 
     def visualize_value_map(self, df):
         """
-        Creates a heatmap of the pitch showing the 'Value' of having the ball in each zone.
+        Creates a heatmap of the pitch showing average predicted xT value in each zone.
+        Uses actual data predictions aggregated by location bins with smoothing.
         """
-        print("Generating Heatmap...")
+        from scipy.ndimage import gaussian_filter
         
-        # Create grid
-        x_range = np.linspace(0, 120, 50)
-        y_range = np.linspace(0, 80, 50)
-        xx, yy = np.meshgrid(x_range, y_range)
+        print("Generating Heatmap from actual predictions...")
         
-        grid_points = pd.DataFrame({'start_x': xx.ravel(), 'start_y': yy.ravel()})
+        # Need original coordinates - reconstruct from dist_to_goal
+        try:
+            raw_df = pd.read_csv("statsbomb_chained_dataset.csv")
+            df_with_coords = df[['pred_value']].copy()
+            df_with_coords['start_x'] = raw_df['start_x'].values[:len(df)]
+            df_with_coords['start_y'] = raw_df['start_y'].values[:len(df)]
+        except:
+            print("Warning: Could not load raw coordinates, using dist_to_goal approximation")
+            df_with_coords = df[['pred_value', 'dist_to_goal']].copy()
+            df_with_coords['start_x'] = 120 - df_with_coords['dist_to_goal']
+            df_with_coords['start_y'] = 40
         
-        # Engineer grid features
-        grid_points['dx'] = 120 - grid_points['start_x']
-        grid_points['dy'] = 40 - grid_points['start_y']
-        grid_points['dist_to_goal'] = np.sqrt(grid_points['dx']**2 + grid_points['dy']**2)
-        grid_points['angle_to_goal'] = np.arctan2(grid_points['dy'], grid_points['dx'])
-        # Assume Passes for the visualization
-        grid_points['type_Pass'] = 1
-        grid_points['type_Carry'] = 1
+        # Higher resolution bins
+        x_bins = np.linspace(0, 120, 61)  # 60 bins
+        y_bins = np.linspace(0, 80, 41)   # 40 bins
         
-        features = self.feature_names
-        z = self.model.predict_proba(grid_points[features])[:, 1]
-        z = z.reshape(xx.shape)
+        df_with_coords['x_bin'] = pd.cut(df_with_coords['start_x'], bins=x_bins, labels=False)
+        df_with_coords['y_bin'] = pd.cut(df_with_coords['start_y'], bins=y_bins, labels=False)
         
-        # --- PLOTTING UPDATED ---
-        fig, ax = plt.subplots(figsize=(10, 7))
+        # Aggregate: mean xT per zone
+        zone_avg = df_with_coords.groupby(['x_bin', 'y_bin'])['pred_value'].mean().reset_index()
         
-        # 1. Draw the heatmap first
-        # Using 'magma' colormap: black/purple = low value, orange/bright = high value
-        contour = ax.contourf(xx, yy, z, levels=25, cmap='magma', vmin=0, vmax=0.15)
+        # Create heatmap grid
+        z = np.zeros((len(y_bins)-1, len(x_bins)-1))
+        z[:] = np.nan
+        
+        for _, row in zone_avg.iterrows():
+            if pd.notna(row['x_bin']) and pd.notna(row['y_bin']):
+                z[int(row['y_bin']), int(row['x_bin'])] = row['pred_value']
+        
+        # Fill NaN with nearest neighbor then smooth
+        from scipy.ndimage import generic_filter
+        
+        # Fill NaNs with local mean
+        mask = np.isnan(z)
+        z_filled = np.where(mask, np.nanmean(z), z)
+        
+        # Apply Gaussian smoothing for a cleaner look
+        z_smooth = gaussian_filter(z_filled, sigma=1.5)
+        
+        # Get bin centers for plotting
+        x_centers = (x_bins[:-1] + x_bins[1:]) / 2
+        y_centers = (y_bins[:-1] + y_bins[1:]) / 2
+        xx, yy = np.meshgrid(x_centers, y_centers)
+        
+        # --- PLOTTING ---
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        # Determine color scale from actual data
+        vmax = np.nanpercentile(z_smooth, 99)
+        vmin = np.nanpercentile(z_smooth, 1)
+        
+        # Draw smooth heatmap using contourf
+        contour = ax.contourf(xx, yy, z_smooth, levels=30, cmap='magma', vmin=vmin, vmax=vmax)
         cbar = fig.colorbar(contour, ax=ax)
-        cbar.set_label('Probability of Goal (xT)')
+        cbar.set_label('Average xT (Probability Chain Leads to Goal)')
         
-        # 2. Overlay pitch markings
+        # Overlay pitch markings
         self._draw_pitch_markings(ax)
         
-        # 3. Final Touches
-        ax.set_title('Non-Shot Expected Goals Map (Random Forest)')
+        # Final touches
+        ax.set_title(f'Expected Threat Map (from {len(df):,} actual events)')
         ax.set_xlim(0, 120)
-        ax.set_ylim(80, 0) # Invert Y axis so top-left is (0,0) - standard football view
-        ax.set_aspect('equal') # Ensure the pitch isn't stretched
-        ax.axis('off') # Hide the axis numbers for a cleaner look
+        ax.set_ylim(80, 0)  # Invert Y axis
+        ax.set_aspect('equal')
+        ax.axis('off')
         
         plt.tight_layout()
         plt.savefig("xt_heatmap.png", dpi=300, bbox_inches='tight')
-        print("Heatmap saved to xt_heatmap.png")
+        print(f"Heatmap saved to xt_heatmap.png (value range: {vmin:.4f} - {vmax:.4f})")
 
     def run_pipeline(self):
         """Helper to train and visualize in one go."""
         df_with_preds = self.train()
         self.visualize_value_map(df_with_preds)
         return df_with_preds
-
