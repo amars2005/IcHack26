@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import type { Player as PlayerType } from '../types';
 import { COLORS, PLAYER_RADIUS, PLAYER_RING_OFFSET } from '../constants';
 
@@ -24,6 +25,7 @@ export function Player({ player, scale, hasBall, onDragEnd }: PlayerProps) {
       const x = (moveEvent.clientX - rect.left) / scale;
       const y = (moveEvent.clientY - rect.top) / scale;
 
+      // Update position immediately during drag
       onDragEnd(player.id, x, y);
     };
 
@@ -47,12 +49,32 @@ export function Player({ player, scale, hasBall, onDragEnd }: PlayerProps) {
   // Extract player number from ID (e.g., 'd1' -> '1', '10' -> '10')
   const playerNumber = player.id.replace(/^d/, '');
 
+  const displayX = player.position.x;
+  const displayY = player.position.y;
+
+  // Animation configuration - smooth spring with exponential decay
+  // Disable animation during drag for immediate response
+  const animationConfig = isDragging
+    ? { duration: 0 } // Immediate during drag
+    : {
+        type: "spring" as const,
+        damping: 20,
+        stiffness: 100,
+        mass: 1,
+      };
+
   return (
-    <g>
+    <motion.g
+      animate={{
+        x: displayX,
+        y: displayY,
+      }}
+      transition={animationConfig}
+    >
       {/* Outline ring (black for dragging, yellow for ball, team color otherwise) */}
       <circle
-        cx={player.position.x}
-        cy={player.position.y}
+        cx={0}
+        cy={0}
         r={PLAYER_RADIUS + PLAYER_RING_OFFSET}
         fill="none"
         stroke={ringColor}
@@ -60,26 +82,26 @@ export function Player({ player, scale, hasBall, onDragEnd }: PlayerProps) {
       />
       {/* Player dot */}
       <circle
-        cx={player.position.x}
-        cy={player.position.y}
+        cx={0}
+        cy={0}
         r={PLAYER_RADIUS}
         fill={COLORS[player.type]}
         style={{ cursor: 'move' }}
         onMouseDown={handleMouseDown}
       />
-      {/* Player number */}
+      {/* Player number - centered using SVG styling */}
       <text
-        x={player.position.x}
-        y={player.position.y}
+        x={0}
+        y={0}
         textAnchor="middle"
         dominantBaseline="central"
         fill="white"
-        fontSize={1.2}
+        fontSize={1.56}
         fontWeight="bold"
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
         {playerNumber}
       </text>
-    </g>
+    </motion.g>
   );
 }

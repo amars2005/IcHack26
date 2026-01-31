@@ -35,6 +35,7 @@ export async function generateSituation(situation: string): Promise<LLMResponse>
 
   // Validate response structure
   if (!Array.isArray(data.attackers) || !Array.isArray(data.defenders) || !data.ball_id) {
+    console.log('Received data:', data);
     throw new Error('Invalid response structure from backend');
   }
 
