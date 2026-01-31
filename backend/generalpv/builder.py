@@ -7,7 +7,7 @@ class DatasetBuilder:
         self.loader = StatsBombLoader()
         
     def build_dataset(self, limit=None):
-        match_ids = self.loader.get_all_free_matches()
+        match_ids = self.loader.get_all_360_matches()
         
         if limit:
             match_ids = match_ids[:limit]
