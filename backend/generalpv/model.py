@@ -1,7 +1,7 @@
 # model.py
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+import lightgbm as lgb
 from sklearn.metrics import roc_auc_score, brier_score_loss
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches # Required for drawing circles/boxes
@@ -10,8 +10,16 @@ class ExpectedThreatModel:
     def __init__(self, filepath="statsbomb_chained_dataset.csv"):
         self.filepath = filepath
         # Increased depth slightly to capture more complex spatial patterns
-        self.model = RandomForestClassifier(n_estimators=100, max_depth=12, random_state=42)
-        
+        self.model = lgb.LGBMClassifier(
+            n_estimators=300,
+            learning_rate=0.03,
+            num_leaves=63,
+            max_depth=10,
+            random_state=42,
+            importance_type='gain'
+        )
+        self.feature_names = []
+
     def load_and_prep(self):
         print("Loading dataset...")
         df = pd.read_csv(self.filepath)
@@ -25,17 +33,38 @@ class ExpectedThreatModel:
         
         # 2. One-Hot Encoding
         df_encoded = pd.get_dummies(df, columns=['type'], prefix='type')
+        action_cols = [c for c in df_encoded.columns if 'type_' in c]
+
+        player_features = []
+        for i in range(5): # Adjust if you have more than 5 players in your CSV
+            px_col, py_col = f'p{i}_x', f'p{i}_y'
+            team_col = f'p{i}_team'
+            
+            if px_col in df.columns:
+                dist_feat = f'p{i}_dist_rel'
+                ang_feat = f'p{i}_ang_rel'
+                
+                # Calculate Euclidean distance from player to ball
+                df[dist_feat] = np.where(df[px_col] != -1,
+                    np.sqrt((df[px_col] - df['start_x'])**2 + (df[py_col] - df['start_y'])**2),
+                    -1)
+                
+                # Calculate Angle from ball to player
+                df[ang_feat] = np.where(df[px_col] != -1,
+                    np.arctan2(df[py_col] - df['start_y'], df[px_col] - df['start_x']),
+                    -1)
+                
+                player_features.extend([dist_feat, ang_feat, team_col])
         
-        features = ['start_x', 'start_y', 'dist_to_goal', 'angle_to_goal', 'type_Pass', 'type_Carry']
+        self.feature_names = ['start_x', 'start_y', 'dist_to_goal', 'angle_to_goal'] + action_cols + player_features
         
-        # Ensure columns exist
-        for col in ['type_Pass', 'type_Carry']:
+        # Final safety check for LightGBM
+        for col in self.feature_names:
             if col not in df_encoded.columns:
                 df_encoded[col] = 0
-                
-        df_encoded[features] = df_encoded[features].fillna(0)
-        
-        return df_encoded, features
+            df_encoded[col] = df_encoded[col].fillna(-1)
+
+        return df_encoded, self.feature_names
 
     def train(self):
         df, features = self.load_and_prep()
@@ -56,7 +85,7 @@ class ExpectedThreatModel:
         X_test = test_data[features]
         y_test = test_data['chain_goal']
         
-        print("Training Random Forest...")
+        print("Training Lightgbm...")
         self.model.fit(X_train, y_train)
         
         # Evaluate
