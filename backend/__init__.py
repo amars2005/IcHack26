@@ -5,8 +5,10 @@ from flask import request, Flask
 from flask_cors import CORS
 import requests
 import json
-import pandas as pd
+import os
 import dotenv
+import joblib
+import lightgbm as lgb
 dotenv.load_dotenv()
 
 SYSTEM_PROMPT = """You are an expert football/soccer tactical analyst. Your task is to position EXACTLY 22 players (11 attacking, 11 defending) on a football pitch based on the described situation.
@@ -209,28 +211,63 @@ def start_app():
             if not data:
                 return {"error": "No data provided"}, 400
 
+            #  process data
             attackers = data.get("attackers", [])
             defenders = data.get("defenders", [])
-            print(attackers, defenders)
-
-            attackers_positions = attackers[:1]
-            defenders_positions = defenders[:2]
+            keepers = data.get("keepers", [])
 
             ball_id = data["ball_id"]
+            ball_position = next(
+                ({"x": p["x"], "y": p["y"]}
+                 for p in attackers if p["id"] == ball_id),
+                None)
 
-            # now pass the data to the models for best action, xT and P(success)
+            if ball_position is None:
+                raise ValueError(
+                    "Ball position could not be determined from ball_id.")
 
-            # generations
-            import numpy as np
-            xT = np.random.rand(12)
-            p_success = np.random.rand(12)
-            action = np.random.choice(
-                ["pass", "carry", "shoot"], size=12
-            )
+            data_dict = {
+                "ball_x": ball_position['x'],
+                "ball_y": ball_position['y'],
+            }
 
-            evaluations = {action[i]: {
-                "xT": xT[i], "P(success)": p_success[i]} for i in range(12)}
-            return json.dumps(evaluations, indent=4)
+            for i in range(11):  #  for 11 players
+                data_dict[f"p_{i}_x"] = attackers[i]["x"]
+                data_dict[f"p_{i}_y"] = attackers[i]["y"]
+                data_dict[f'p_{i}_team'] = 1  # attacker
+
+                data_dict[f"p_{i+11}_x"] = defenders[i]["x"]
+                data_dict[f"p_{i+11}_y"] = defenders[i]["y"]
+                data_dict[f'p_{i+11}_team'] = 0  # defender
+
+            data_dict[f"keeper_1_x"] = keepers[0]["x"]
+            data_dict[f"keeper_1_y"] = keepers[0]["y"]
+            # keeper for team in entry [0]
+            data_dict[f'keeper_1_team'] = 1  # attacker keeper
+
+            data_dict[f"keeper_2_x"] = keepers[1]["x"]
+            data_dict[f"keeper_2_y"] = keepers[1]["y"]
+            # keeper for team in entry [1]
+            data_dict[f'keeper_2_team'] = 0  # defender keeper
+
+            from generalpv.expectedThreatModel import ExpectedThreatModel
+            xT = ExpectedThreatModel()
+            xT.load_model(os.path.join(os.path.dirname(
+                __file__), "models/xT_model.pkl"))
+
+            pxT_value = xT.calculate_expected_threat(**data_dict)
+
+            # random prediction generations
+            # import numpy as np
+            # xT = np.random.rand(12)
+            # p_success = np.random.rand(12)
+            # action = np.random.choice(
+            #     ["pass", "carry", "shoot"], size=12
+            # )
+
+            # evaluations = {action[i]: {
+            #     "xT": xT[i], "P(success)": p_success[i]} for i in range(12)}
+            return json.dumps(pxT_value)
 
     @app.route("/generate-positions", methods=["GET"])
     def generate_positions():
