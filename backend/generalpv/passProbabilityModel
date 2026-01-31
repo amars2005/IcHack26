@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from basemodel import BaseModel 
 
-class ExpectedThreatModel(BaseModel):
+class passProbabilityModel(BaseModel):
     def __init__(self, filepath="statsbomb_chained_dataset.csv"):
         self.filepath = filepath
         df_encoded, features = self.load_and_prep()
@@ -42,20 +42,20 @@ class ExpectedThreatModel(BaseModel):
             
             player_feats.extend([dist_col, ang_col, pt])
 
-        # 3. Action Encoding
-        df_encoded = pd.get_dummies(df, columns=['type'], prefix='type')
-        action_cols = [c for c in df_encoded.columns if 'type_' in c]
+        df = df[df['type'] == 'Pass']
 
         # 4. Final Feature Selection
-        features = ['start_x', 'start_y', 'dist_to_goal', 'angle_to_goal'] + action_cols + player_feats
+        features = ['start_x', 'start_y', 'dist_to_goal', 'angle_to_goal'] + player_feats
         
         # Clean numeric data for LightGBM
         for col in features:
-            if col not in df_encoded.columns:
-                df_encoded[col] = -1
-            df_encoded[col] = pd.to_numeric(df_encoded[col], errors='coerce').fillna(-1)
+            if col not in df.columns:
+                df[col] = -1
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(-1)
 
-        return df_encoded, features
+        
+
+        return df, features
 
     def run_pipeline(self):
         """Helper to train and visualize in one go."""
@@ -67,9 +67,9 @@ class ExpectedThreatModel(BaseModel):
 if __name__ == "__main__":
     # NOTE: Ensure statsbomb_chained_dataset.csv exists first!
     try:
-        xt_model = ExpectedThreatModel()
-        df_with_preds = xt_model.run_pipeline
-        df_with_preds.to_csv("final_model_output.csv", index=False)
+        pp_model = passProbabilityModel()
+        df_with_preds = pp_model.run_pipeline
+        df_with_preds.to_csv("pp_model_output.csv", index=False)
     except FileNotFoundError:
         print("Error: 'statsbomb_chained_dataset.csv' not found.")
         print("Please run 'python main.py' first to generate the data.")

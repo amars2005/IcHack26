@@ -145,3 +145,9 @@ class BaseModel():
         plt.savefig("xt_heatmap.png", dpi=300, bbox_inches='tight')
         print("Heatmap saved to xt_heatmap.png")
 
+    def run_pipeline(self):
+        """Helper to train and visualize in one go."""
+        df_with_preds = self.train()
+        self.visualize_value_map(df_with_preds)
+        return df_with_preds
+

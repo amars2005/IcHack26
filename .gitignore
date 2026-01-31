@@ -1,3 +1,6 @@
 /kagglehub
-venv/
+*.csv
+*.pyc
+*.png
+**/__pycache__venv/
 __pycache__/
