@@ -112,7 +112,14 @@ def start_app():
 
         response = requests.post(url, headers=headers, json=payload)
         if response.status_code == 200:
-            return response.json()
+            anthropic_data = response.json()
+            raw_content = anthropic_data['content'][0]['text']
+
+            try:
+                clean_json = json.loads(raw_content)
+                return clean_json  # Flask automatically converts this dict to JSON
+            except json.JSONDecodeError:
+                return {"error": "Failed to parse model output", "raw": raw_content}, 500
         else:
             return response.json(), response.status_code
 
