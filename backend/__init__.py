@@ -117,7 +117,8 @@ def start_app():
 
             try:
                 clean_json = json.loads(raw_content)
-                return clean_json  # Flask automatically converts this dict to JSON
+                print("Generated positions:", clean_json)
+                return clean_json
             except json.JSONDecodeError:
                 return {"error": "Failed to parse model output", "raw": raw_content}, 500
         else:
