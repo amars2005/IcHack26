@@ -1,6 +1,13 @@
+import { useState } from 'react';
 import { Player } from './Player';
 import type { Player as PlayerType, HeatmapData } from '../types';
 import { PITCH_WIDTH, PITCH_HEIGHT, COLORS, GOAL_Y } from '../constants';
+
+type HoverInfo = {
+  x: number;
+  y: number;
+  value: number;
+} | null;
 
 type PitchProps = {
   players: PlayerType[];
@@ -36,11 +43,13 @@ function getHeatmapColor(value: number, min: number, max: number): string {
 }
 
 export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1, heatmap, showHeatmap = true }: PitchProps) {
+  const [hoverInfo, setHoverInfo] = useState<HoverInfo>(null);
   const goalWidth = 20;
   const penaltyBoxWidth = 18;
   const penaltyBoxHeight = 44;
 
   return (
+  <div style={{ position: 'relative', display: 'inline-block' }}>
     <svg
       width={PITCH_WIDTH * scale}
       height={PITCH_HEIGHT * scale}
@@ -83,26 +92,58 @@ export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1, heatmap, 
           : PITCH_HEIGHT / y_coords.length;
 
         return (
-          <g opacity={0.55} filter="url(#heatmapBlur)">
-            {grid.map((row, rowIdx) =>
-              row.map((value, colIdx) => {
-                // Backend uses y=0 at bottom, SVG uses y=0 at top
-                const x = x_coords[colIdx] - cellWidth / 2;
-                const y = PITCH_HEIGHT - y_coords[rowIdx] - cellHeight / 2;
-                
-                return (
-                  <rect
-                    key={`heatmap-${rowIdx}-${colIdx}`}
-                    x={Math.max(0, x)}
-                    y={Math.max(0, y)}
-                    width={cellWidth}
-                    height={cellHeight}
-                    fill={getHeatmapColor(value, minVal, maxVal)}
-                  />
-                );
-              })
-            )}
-          </g>
+          <>
+            {/* Visual heatmap layer with blur */}
+            <g opacity={0.55} filter="url(#heatmapBlur)">
+              {grid.map((row, rowIdx) =>
+                row.map((value, colIdx) => {
+                  // Backend uses y=0 at bottom, SVG uses y=0 at top
+                  const x = x_coords[colIdx] - cellWidth / 2;
+                  const y = PITCH_HEIGHT - y_coords[rowIdx] - cellHeight / 2;
+                  
+                  return (
+                    <rect
+                      key={`heatmap-${rowIdx}-${colIdx}`}
+                      x={Math.max(0, x)}
+                      y={Math.max(0, y)}
+                      width={cellWidth}
+                      height={cellHeight}
+                      fill={getHeatmapColor(value, minVal, maxVal)}
+                    />
+                  );
+                })
+              )}
+            </g>
+            {/* Invisible interaction layer for hover events */}
+            <g opacity={0}>
+              {grid.map((row, rowIdx) =>
+                row.map((value, colIdx) => {
+                  const x = x_coords[colIdx] - cellWidth / 2;
+                  const y = PITCH_HEIGHT - y_coords[rowIdx] - cellHeight / 2;
+                  const cellX = Math.max(0, x);
+                  const cellY = Math.max(0, y);
+                  
+                  return (
+                    <rect
+                      key={`heatmap-hover-${rowIdx}-${colIdx}`}
+                      x={cellX}
+                      y={cellY}
+                      width={cellWidth}
+                      height={cellHeight}
+                      fill="transparent"
+                      style={{ cursor: 'crosshair' }}
+                      onMouseEnter={() => setHoverInfo({ 
+                        x: (cellX + cellWidth / 2) * scale, 
+                        y: cellY * scale, 
+                        value 
+                      })}
+                      onMouseLeave={() => setHoverInfo(null)}
+                    />
+                  );
+                })
+              )}
+            </g>
+          </>
         );
       })()}
 
@@ -202,5 +243,34 @@ export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1, heatmap, 
         />
       ))}
     </svg>
+    
+    {/* xT Value Tooltip */}
+    {showHeatmap && hoverInfo && (
+      <div
+        style={{
+          position: 'absolute',
+          left: `${hoverInfo.x + 15}px`,
+          top: `${hoverInfo.y - 10}px`,
+          background: 'rgba(15, 23, 42, 0.95)',
+          color: 'white',
+          padding: '8px 12px',
+          borderRadius: '6px',
+          fontSize: '12px',
+          pointerEvents: 'none',
+          zIndex: 100,
+          maxWidth: '200px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          border: '1px solid rgba(255,255,255,0.1)',
+        }}
+      >
+        <div style={{ fontWeight: 'bold', marginBottom: '4px', color: '#f59e0b' }}>
+          xT: {(hoverInfo.value * 100).toFixed(2)}%
+        </div>
+        <div style={{ color: '#9ca3af', lineHeight: '1.4' }}>
+          Chance of ball starting here ending up in a goal eventually
+        </div>
+      </div>
+    )}
+  </div>
   );
 }
