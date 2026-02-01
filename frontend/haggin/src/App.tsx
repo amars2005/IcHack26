@@ -30,7 +30,7 @@ function App() {
   
   const [teamName, setTeamName] = useState("FC Haggin'");
   const [teamColor, setTeamColor] = useState('#7A28AB');
-  const [formation, setFormation] = useState('4-4-2');
+  const [formation, setFormation] = useState('4-3-3');
   const [editingTeamName, setEditingTeamName] = useState(false);
   const teamInputRef = useRef<HTMLInputElement | null>(null);
   const prevTeamNameRef = useRef(teamName);
