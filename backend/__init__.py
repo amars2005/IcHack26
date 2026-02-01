@@ -9,6 +9,7 @@ import os
 import dotenv
 import joblib
 import lightgbm as lgb
+from backend.generalpv.scale_metrics import normalize_value
 dotenv.load_dotenv()
 
 MODEL_MODE = "nn"
@@ -376,7 +377,7 @@ def start_app():
                 __file__)), "models/xg_model_360.pkl")
             xg_model.load_model(model_path)
             xg_value = xg_model.calculate_expected_goal(**data_dict)
-            actions["shoot"] = {"xG": xg_value}
+            actions["shoot"] = {"xG": normalize_value("xG", xg_value)}
 
             # CARRY MODEL
             from backend.generalpv.carryModel import CarryModel
@@ -385,9 +386,9 @@ def start_app():
                 carry_result = carry_model.calculate_carry_score(data_dict)
                 if carry_result:
                     actions["carry"] = {
-                        "xT": carry_result["predicted_xt"],
+                        "xT": normalize_value("xT", carry_result["predicted_xt"]),
                         "xT_gain": carry_result["xt_gain"],
-                        "score": carry_result["score"]
+                        "score": normalize_value("score", carry_result["score"])
                     }
                 else:
                     actions["carry"] = {"xT": None}
@@ -403,7 +404,7 @@ def start_app():
             current_xT = pass_score_model.get_current_xT(
                 ball_position, attackers, defenders, keepers
             )
-            actions["current_xT"] = current_xT
+            actions["current_xT"] = normalize_value("xT", current_xT)
 
             # Calculate pass scores for all targets
             pass_scores = pass_score_model.calculate_pass_scores(
@@ -418,12 +419,12 @@ def start_app():
             # Format pass results for frontend
             for player_id, metrics in pass_scores.items():
                 actions[f"pass_to_{player_id}"] = {
-                    "xT": metrics["target_xT"],
-                    "P(success)": metrics["success_prob"],
-                    "reward": metrics["reward"],
-                    "risk": metrics["risk"],
-                    "score": metrics["score"],
-                    "opponent_xT": metrics["opponent_xT"],
+                    "xT": normalize_value("target_xT", metrics["target_xT"]),
+                    "P(success)": normalize_value("success_prob", metrics["success_prob"]),
+                    "reward": normalize_value("reward", metrics["reward"]),
+                    "risk": normalize_value("risk", metrics["risk"]),
+                    "score": normalize_value("score", metrics["score"]),
+                    "opponent_xT": normalize_value("opponent_xT", metrics["opponent_xT"]),
                     "interception_point": metrics["interception_point"]
                 }
 
