@@ -283,7 +283,7 @@ class PassScoreModel:
             
             # Score: Expected value
             # score = p_succ × reward - (1 - p_succ) × risk
-            score = success_prob * reward - (1 - success_prob) * risk
+            score = success_prob * reward - 0.1*(1 - success_prob) * risk
             
             results[player_id] = {
                 "target_xT": target_xT,

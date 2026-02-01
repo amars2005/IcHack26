@@ -368,7 +368,7 @@ def start_app():
             # ---------------- data processing done for required dict format: data_dict----------------#
 
             actions = {}
-            
+
             # SHOOT MODEL
             from backend.generalpv.xg import ExpectedGoalModel
             xg_model = ExpectedGoalModel(skip_training=True)
@@ -398,13 +398,13 @@ def start_app():
             from backend.generalpv.passScoreModel import PassScoreModel
             pass_score_model = PassScoreModel()
             pass_score_model.load_models()
-            
+
             # Get current xT for reference
             current_xT = pass_score_model.get_current_xT(
                 ball_position, attackers, defenders, keepers
             )
             actions["current_xT"] = current_xT
-            
+
             # Calculate pass scores for all targets
             pass_scores = pass_score_model.calculate_pass_scores(
                 ball_position=ball_position,
@@ -414,7 +414,7 @@ def start_app():
                 ball_id=ball_id,
                 data_dict=data_dict
             )
-            
+
             # Format pass results for frontend
             for player_id, metrics in pass_scores.items():
                 actions[f"pass_to_{player_id}"] = {
