@@ -1,25 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Pitch } from './components/Pitch';
-import type { Player } from './types';
+import { MenuBar } from './components/MenuBar';
+import type { Player, HeatmapData, GenerationStatus } from './types';
 import type { Preset } from './presets';
-import { FORMATION_PRESETS, SITUATION_PRESETS } from './presets';
-import type { GenerationStatus } from './types';
 import { INITIAL_PLAYERS, INITIAL_BALL_CARRIER, PITCH_WIDTH, PITCH_HEIGHT } from './constants';
-import { generateSituation, AIError, fetchPlayerMetrics } from './llm';
-import { PlayerInfo } from './components/PlayerInfo';
-import BrandingImage from './components/BrandingImage';
+import { generateSituation, AIError } from './llm';
 
 function App() {
   const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
   const [ballCarrier, setBallCarrier] = useState(INITIAL_BALL_CARRIER);
   const [generationStatus, setGenerationStatus] = useState<GenerationStatus>('idle');
   const [aiRefusalMessage, setAiRefusalMessage] = useState<string | null>(null);
-  const [customSituation, setCustomSituation] = useState('');
-  const [selectedPlayerPosition, setSelectedPlayerPosition] = useState<{ x: number; y: number } | null>(null);
-  const [selectedMetrics, setSelectedMetrics] = useState<Record<string, number> | null>(null);
-  const [isPitchFullscreen, setIsPitchFullscreen] = useState(false);
-  const pitchContainerRef = useRef<HTMLDivElement | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [xTResult, setXTResult] = useState<any | null>(null);
   const [xTLoading, setXTLoading] = useState(false);
   const [testResult, setTestResult] = useState<any | null>(null);
@@ -39,8 +30,6 @@ function App() {
   );
 
   // Build API payload directly from current players and ballCarrier state
-  // Note: SVG has y=0 at top, but football coordinates have y=0 at bottom
-  // So we flip y: actualY = PITCH_HEIGHT - svgY
   const getApiPayload = () => {
     const attackers = players
       .filter(p => p.type === 'attacker' && p.id !== '1')
@@ -75,34 +64,6 @@ function App() {
     const clampedY = Math.max(0, Math.min(PITCH_HEIGHT, y));
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, position: { x: clampedX, y: clampedY } } : p)));
   };
-
-  const handleAssignBall = (id: string) => {
-    setBallCarrier(id);
-  };
-
-  const fetchSuggestedMoves = async () => {
-    // Placeholder: generate simple moves based on current players and ball carrier.
-    // Backend will replace this with a real API returning structured Move[].
-    const attackersList = players.filter(p => p.type === 'attacker' && p.id !== ballCarrier);
-    const sample: Move[] = [];
-    // Suggest up to 4 passes to nearest attackers + 1 shoot/dribble option
-    for (let i = 0; i < Math.min(4, attackersList.length); i++) {
-      const p = attackersList[i];
-      sample.push({ id: `m-pass-${p.id}`, type: 'pass', targetId: p.id, description: `Pass to #${p.id}`, score: 0.5 - i * 0.05 });
-    }
-    sample.push({ id: 'm-dribble', type: 'dribble', description: 'Dribble forward', score: 0.3 });
-    setMoves(sample.slice(0,5));
-  };
-
-  useEffect(() => {
-    const p = players.find((pl) => pl.id === ballCarrier);
-    setSelectedPlayerPosition(p ? p.position : null);
-    setSelectedMetrics(null);
-    if (!ballCarrier) return;
-    let mounted = true;
-    fetchPlayerMetrics(ballCarrier).then((m) => { if (mounted) setSelectedMetrics(m); });
-    return () => { mounted = false; };
-  }, [ballCarrier, players]);
 
   const handleLoadPreset = (preset: Preset) => {
     setPlayers(preset.players);
@@ -183,7 +144,6 @@ function App() {
       const result = await response.json();
       console.log('xT Result:', result);
       setXTResult(result);
-      // Update heatmap data if available
       if (result.heatmap) {
         setHeatmapData(result.heatmap);
       }

@@ -47,5 +47,7 @@ export type XTResult = {
   xT?: number;
   heatmap?: HeatmapData | null;
   error?: string;
+  shoot?: { xG: number };
+  carry?: { xT: number | null };
   [key: string]: unknown;
 };
