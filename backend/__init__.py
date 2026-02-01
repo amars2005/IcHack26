@@ -209,9 +209,11 @@ def start_app():
 
     @app.route("/", methods=["POST"])
     def predictions():
+        """
+        Generate predictions for best actions given all player positions.
+        """
         if request.method == "POST":
             data = request.get_json()
-            print(data)
 
             if not data:
                 return {"error": "No data provided"}, 400
@@ -220,7 +222,6 @@ def start_app():
             attackers = data.get("attackers", [])
             defenders = data.get("defenders", [])
             keepers = data.get("keepers", [])
-            print(attackers)
 
             ball_id = data["ball_id"]
             # Search in attackers and keepers for the ball carrier
@@ -296,7 +297,9 @@ def start_app():
 
     @app.route("/generate-positions", methods=["GET"])
     def generate_positions():
-        print("Generating positions...")
+        """
+        Call Claude to generate player positions based on input situation
+        """
         if request.method == "GET":
             situation = request.args.get("situation", "")
 

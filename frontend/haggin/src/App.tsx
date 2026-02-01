@@ -1,21 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Pitch } from './components/Pitch';
 import { MenuBar } from './components/MenuBar';
-import type { Player, HeatmapData } from './types';
+import type { Player, HeatmapData, GenerationStatus } from './types';
 import type { Preset } from './presets';
-import type { GenerationStatus, XTResult } from './types';
 import { INITIAL_PLAYERS, INITIAL_BALL_CARRIER, PITCH_WIDTH, PITCH_HEIGHT } from './constants';
-import { generateSituation } from './llm';
+import { generateSituation, AIError, fetchPlayerMetrics } from './llm';
 
 function App() {
   const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [ballCarrier, setBallCarrier] = useState(INITIAL_BALL_CARRIER);
   const [generationStatus, setGenerationStatus] = useState<GenerationStatus>('idle');
-  const [xTResult, setXTResult] = useState<XTResult | null>(null);
+  const [aiRefusalMessage, setAiRefusalMessage] = useState<string | null>(null);
+  const [selectedPlayerPosition, setSelectedPlayerPosition] = useState<{ x: number; y: number } | null>(null);
+  const [selectedMetrics, setSelectedMetrics] = useState<Record<string, number> | null>(null);
+  const [xTResult, setXTResult] = useState<any | null>(null);
   const [xTLoading, setXTLoading] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [heatmapData, setHeatmapData] = useState<HeatmapData | null>(null);
+  const [menuOpen, setMenuOpen] = useState(true);
+  const scale = 1;
 
   // Build API payload directly from current players and ballCarrier state
   // Note: SVG has y=0 at top, but football coordinates have y=0 at bottom
@@ -50,16 +53,20 @@ function App() {
   };
 
   const handlePlayerMove = (id: string, x: number, y: number) => {
-    // Clamp position to pitch boundaries
     const clampedX = Math.max(0, Math.min(PITCH_WIDTH, x));
     const clampedY = Math.max(0, Math.min(PITCH_HEIGHT, y));
-
-    setPlayers((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, position: { x: clampedX, y: clampedY } } : p
-      )
-    );
+    setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, position: { x: clampedX, y: clampedY } } : p)));
   };
+
+  useEffect(() => {
+    const p = players.find((pl) => pl.id === ballCarrier);
+    setSelectedPlayerPosition(p ? p.position : null);
+    setSelectedMetrics(null);
+    if (!ballCarrier) return;
+    let mounted = true;
+    fetchPlayerMetrics(ballCarrier).then((m) => { if (mounted) setSelectedMetrics(m); });
+    return () => { mounted = false; };
+  }, [ballCarrier, players]);
 
   const handleLoadPreset = (preset: Preset) => {
     setPlayers(preset.players);
@@ -74,29 +81,13 @@ function App() {
       setPlayers(result.players);
       setBallCarrier(result.ballCarrier);
       setGenerationStatus('success');
-
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setGenerationStatus('idle');
-      }, 3000);
+      setTimeout(() => setGenerationStatus('idle'), 3000);
     } catch (error) {
-      console.error('Generation error:', error);
       setGenerationStatus('error');
-
-      // Clear error message after 5 seconds
-      setTimeout(() => {
-        setGenerationStatus('idle');
-      }, 5000);
+      if (error instanceof AIError && error.code === 'INAPPROPRIATE_PROMPT') setAiRefusalMessage(error.message);
+      setTimeout(() => { setGenerationStatus('idle'); setAiRefusalMessage(null); }, 5000);
     }
   };
-
-  // Calculate pitch scale based on menu state - fill 70% of viewport
-  const availableWidth = (menuOpen ? window.innerWidth - 320 : window.innerWidth) * 0.7;
-  const availableHeight = window.innerHeight * 0.7;
-  const scale = Math.min(
-    availableWidth / PITCH_WIDTH,
-    availableHeight / PITCH_HEIGHT
-  );
 
   const handleCalculateXT = async () => {
     setXTLoading(true);
@@ -121,28 +112,6 @@ function App() {
       setXTResult({ error: 'Failed to calculate xT' });
     } finally {
       setXTLoading(false);
-    }
-  };
-
-  const handleGeneratePositions = async (situation: string) => {
-    const response = await fetch(
-      `http://localhost:5001/generate-positions?situation=${encodeURIComponent(situation)}`
-    );
-    const data = await response.json();
-    if (data.attackers && data.defenders && data.ball_id) {
-      // Convert API response to players format
-      const newAttackers = data.attackers.map((a: { id: string; x: number; y: number }) => ({
-        id: a.id,
-        type: 'attacker' as const,
-        position: { x: a.x, y: a.y },
-      }));
-      const newDefenders = data.defenders.map((d: { id: string; x: number; y: number }) => ({
-        id: d.id,
-        type: 'defender' as const,
-        position: { x: d.x, y: d.y },
-      }));
-      setPlayers([...newAttackers, ...newDefenders]);
-      setBallCarrier(data.ball_id);
     }
   };
 
@@ -182,6 +151,7 @@ function App() {
         showHeatmap={showHeatmap}
         onToggleHeatmap={() => setShowHeatmap(!showHeatmap)}
         hasHeatmapData={!!heatmapData}
+        aiRefusalMessage={aiRefusalMessage}
       />
     </div>
   );

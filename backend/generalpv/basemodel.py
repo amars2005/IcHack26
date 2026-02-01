@@ -10,12 +10,15 @@ class BaseModel():
         self.df = df
         # Increased depth slightly to capture more complex spatial patterns
         self.model = lgb.LGBMClassifier(
-            n_estimators=300,
-            learning_rate=0.03,
-            num_leaves=63,
-            max_depth=10,
+            n_estimators=1000,
+            learning_rate=0.05,
+            num_leaves=127,
+            max_depth=-1,
+            is_unbalance=True,        # Crucial: Goals are rare
+            min_data_in_leaf=100,     # Stability for large datasets
+            importance_type='gain',
             random_state=42,
-            importance_type='gain'
+            verbose=-1                # Hides the 'No further splits' warnings
         )
         self.feature_names = feature_names
         self.output = output

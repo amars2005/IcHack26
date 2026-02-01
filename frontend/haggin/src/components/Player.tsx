@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type React from 'react';
 import { motion } from 'framer-motion';
 import type { Player as PlayerType } from '../types';
 import { COLORS, PLAYER_RADIUS, PLAYER_RING_OFFSET } from '../constants';
@@ -8,9 +9,12 @@ type PlayerProps = {
   scale: number;
   hasBall: boolean;
   onDragEnd: (id: string, x: number, y: number) => void;
+  onRightClick?: (id: string) => void;
+  teamColor?: string;
+  opponentColor?: string;
 };
 
-export function Player({ player, scale, hasBall, onDragEnd }: PlayerProps) {
+export function Player({ player, scale, hasBall, onDragEnd, onRightClick, teamColor, opponentColor }: PlayerProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -39,12 +43,12 @@ export function Player({ player, scale, hasBall, onDragEnd }: PlayerProps) {
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  const outlineColor = player.type === 'attacker'
-    ? COLORS.attackerOutline
-    : COLORS.defenderOutline;
-
-  // Priority: dragging (black) > ball carrier (yellow) > team color
-  const ringColor = isDragging ? '#000' : hasBall ? '#fbbf24' : outlineColor;
+  // Priority: dragging (black) > ball carrier (yellow) > team/opponent color
+  const ringColor = isDragging
+    ? '#000'
+    : hasBall
+      ? '#fbbf24'
+      : (player.type === 'attacker' ? (teamColor || COLORS.attacker) : (opponentColor || COLORS.defender));
 
   // Extract player number from ID (e.g., 'd1' -> '1', '10' -> '10')
   const playerNumber = player.id.replace(/^d/, '');
@@ -70,6 +74,10 @@ export function Player({ player, scale, hasBall, onDragEnd }: PlayerProps) {
         y: displayY,
       }}
       transition={animationConfig}
+      onContextMenu={(e: React.MouseEvent) => {
+        e.preventDefault();
+        onRightClick?.(player.id);
+      }}
     >
       {/* Outline ring (black for dragging, yellow for ball, team color otherwise) */}
       <circle
@@ -85,7 +93,7 @@ export function Player({ player, scale, hasBall, onDragEnd }: PlayerProps) {
         cx={0}
         cy={0}
         r={PLAYER_RADIUS}
-        fill={COLORS[player.type]}
+        fill={player.type === 'attacker' ? (teamColor || COLORS.attacker) : (opponentColor || COLORS.defender)}
         style={{ cursor: 'move' }}
         onMouseDown={handleMouseDown}
       />
