@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Pitch } from './components/Pitch';
-import { MenuBar } from './components/MenuBar';
-import type { Player, HeatmapData, GenerationStatus } from './types';
+import type { Player } from './types';
 import type { Preset } from './presets';
+import { FORMATION_PRESETS, SITUATION_PRESETS } from './presets';
+import type { GenerationStatus } from './types';
 import { INITIAL_PLAYERS, INITIAL_BALL_CARRIER, PITCH_WIDTH, PITCH_HEIGHT } from './constants';
 import { generateSituation, AIError, fetchPlayerMetrics } from './llm';
 import { PlayerInfo } from './components/PlayerInfo';
@@ -13,8 +14,12 @@ function App() {
   const [ballCarrier, setBallCarrier] = useState(INITIAL_BALL_CARRIER);
   const [generationStatus, setGenerationStatus] = useState<GenerationStatus>('idle');
   const [aiRefusalMessage, setAiRefusalMessage] = useState<string | null>(null);
+  const [customSituation, setCustomSituation] = useState('');
   const [selectedPlayerPosition, setSelectedPlayerPosition] = useState<{ x: number; y: number } | null>(null);
   const [selectedMetrics, setSelectedMetrics] = useState<Record<string, number> | null>(null);
+  const [isPitchFullscreen, setIsPitchFullscreen] = useState(false);
+  const pitchContainerRef = useRef<HTMLDivElement | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [xTResult, setXTResult] = useState<any | null>(null);
   const [xTLoading, setXTLoading] = useState(false);
   type Move = { id: string; type: 'pass' | 'shoot' | 'dribble' | 'other'; targetId?: string | null; description: string; score?: number };
@@ -43,6 +48,24 @@ function App() {
     const clampedX = Math.max(0, Math.min(PITCH_WIDTH, x));
     const clampedY = Math.max(0, Math.min(PITCH_HEIGHT, y));
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, position: { x: clampedX, y: clampedY } } : p)));
+  };
+
+  const handleAssignBall = (id: string) => {
+    setBallCarrier(id);
+  };
+
+  const fetchSuggestedMoves = async () => {
+    // Placeholder: generate simple moves based on current players and ball carrier.
+    // Backend will replace this with a real API returning structured Move[].
+    const attackersList = players.filter(p => p.type === 'attacker' && p.id !== ballCarrier);
+    const sample: Move[] = [];
+    // Suggest up to 4 passes to nearest attackers + 1 shoot/dribble option
+    for (let i = 0; i < Math.min(4, attackersList.length); i++) {
+      const p = attackersList[i];
+      sample.push({ id: `m-pass-${p.id}`, type: 'pass', targetId: p.id, description: `Pass to #${p.id}`, score: 0.5 - i * 0.05 });
+    }
+    sample.push({ id: 'm-dribble', type: 'dribble', description: 'Dribble forward', score: 0.3 });
+    setMoves(sample.slice(0,5));
   };
 
   useEffect(() => {
@@ -78,29 +101,52 @@ function App() {
 
   const handleCalculateXT = async () => {
     setXTLoading(true);
-    setXTResult(null);
     try {
-      const payload = getApiPayload();
-      console.log('Sending payload:', payload);
-      const response = await fetch('http://localhost:5001/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json();
-      console.log('xT Result:', result);
-      setXTResult(result);
-      // Update heatmap data if available
-      if (result.heatmap) {
-        setHeatmapData(result.heatmap);
-      }
-    } catch (error) {
-      console.error('xT calculation error:', error);
-      setXTResult({ error: 'Failed to calculate xT' });
-    } finally {
-      setXTLoading(false);
-    }
+      const attackers = players.filter((p) => p.type === 'attacker').map((p) => ({ x: p.position.x, y: p.position.y, id: p.id, team: 1 }));
+      const defenders = players.filter((p) => p.type === 'defender').map((p) => ({ x: p.position.x, y: p.position.y, id: p.id, team: 0 }));
+      const keepers = players.filter(p => p.id === '1' || p.id === 'd1').map(p => ({ x: p.position.x, y: p.position.y, id: p.id, team: p.id === '1' ? 1 : 0 }));
+      const resp = await fetch('http://localhost:5001/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ attackers, defenders, keepers, ball_id: ballCarrier }) });
+      setXTResult(await resp.json());
+    } catch (err) { setXTResult({ error: 'xT failed' }); }
+    finally { setXTLoading(false); }
   };
+
+  const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight });
+  useEffect(() => {
+    const onResize = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const sidebarWidth = 400; // Slightly wider to accommodate internal menu padding
+  const horizontalPadding = 80;
+  const verticalPadding = 60;
+  const scale = Math.min(
+    (viewport.w - sidebarWidth - horizontalPadding) / PITCH_WIDTH,
+    (viewport.h - verticalPadding) / PITCH_HEIGHT
+  );
+
+  useEffect(() => {
+    const onFs = () => setIsPitchFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+
+  useEffect(() => {
+    if (editingTeamName) {
+      prevTeamNameRef.current = teamName;
+      // focus next tick
+      setTimeout(() => {
+        teamInputRef.current?.focus();
+        teamInputRef.current?.select();
+      }, 0);
+    }
+  }, [editingTeamName]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 2000);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', background: '#020617', color: '#f8fafc', overflow: 'hidden' }}>
