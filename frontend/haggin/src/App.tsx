@@ -24,7 +24,7 @@ function App() {
   const [xTLoading, setXTLoading] = useState(false);
   const [testResult, setTestResult] = useState<any | null>(null);
   const [testLoading, setTestLoading] = useState(false);
-  type Move = { id: string; type: 'pass' | 'shoot' | 'dribble' | 'other'; targetId?: string | null; description: string; score?: number };
+  type Move = { id: string; type: 'pass' | 'shoot' | 'dribble' | 'carry' | 'other'; targetId?: string | null; description: string; score?: number };
   const [moves, setMoves] = useState<Move[]>([]);
   
   const [teamName, setTeamName] = useState("FC Haggin'");
@@ -337,6 +337,11 @@ function App() {
                   const dribbleMove = moves.find(m => m.type === 'dribble');
                   if (xTResult.dribble) options.push({ id: 'dribble', label: 'Dribble', desc: 'Dribble option', value: xTResult.dribble.score ?? 0, kind: 'dribble' });
                   else if (dribbleMove) options.push({ id: 'dribble', label: 'Dribble', desc: dribbleMove.description, value: dribbleMove.score ?? 0, kind: 'dribble' });
+
+                  // Include carry action if present in xT results or suggested moves
+                  const carryMove = moves.find(m => m.type === 'carry');
+                  if (xTResult.carry) options.push({ id: 'carry', label: 'Carry', desc: 'Carry the ball forward', value: xTResult.carry.score ?? 0, kind: 'carry' });
+                  else if (carryMove) options.push({ id: 'carry', label: 'Carry', desc: carryMove.description, value: carryMove.score ?? 0, kind: 'carry' });
 
                   options.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
                   const topOptions = options.slice(0, 4);
