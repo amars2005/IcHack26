@@ -388,7 +388,7 @@ def start_app():
                     actions["carry"] = {
                         "xT": normalize_value("xT", carry_result["predicted_xt"]),
                         "xT_gain": carry_result["xt_gain"],
-                        "score": normalize_value("score", carry_result["score"])
+                        "score": carry_result["score"]
                     }
                 else:
                     actions["carry"] = {"xT": None}
