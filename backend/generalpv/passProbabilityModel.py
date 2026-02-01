@@ -8,7 +8,7 @@ import matplotlib.patches as mpatches
 from basemodel import BaseModel 
 
 class passProbabilityModel(BaseModel):
-    def __init__(self, filepath="statsbomb_chained_dataset.csv"):
+    def __init__(self, filepath="statsbomb_normalised_dataset.csv"):
         self.filepath = filepath
         df_encoded, features = self.load_and_prep()
         
@@ -53,13 +53,29 @@ class passProbabilityModel(BaseModel):
 
         return df, features
 
-        print("Loading and Engineering 360 Features...")
-        df = pd.read_csv(self.filepath)
+    def visualize_real_passes(self, df, match_id):
+        match_df = df[df['match_id'] == match_id].copy()
+    
+        fig, ax = plt.subplots(figsize=(12, 8))
+        self._draw_pitch_markings(ax)
+    
+        for _, row in match_df.head(50).iterrows():
+            # Color the arrow by the predicted probability
+            # Green = High prob, Red = Low prob
+            prob = row['pred_value']
+            color = plt.cm.RdYlGn(prob)
+            
+            ax.annotate("", xy=(row['end_x'], row['end_y']), 
+                        xytext=(row['start_x'], row['start_y']),
+                        arrowprops=dict(arrowstyle="->", color=color, alpha=0.6))
+        
+        plt.title(f"Predicted Pass Probabilities - Match {match_id}")
+        plt.show()
 
     def run_pipeline(self):
         """Helper to train and visualize in one go."""
         df_with_preds = self.train()
-        self.visualize_value_map(df_with_preds)
+        self.visualize_real_passes(df_with_preds, '3788741')
         return df_with_preds
 
 # --- EXECUTION ---
@@ -67,7 +83,7 @@ if __name__ == "__main__":
     # NOTE: Ensure statsbomb_chained_dataset.csv exists first!
     try:
         pp_model = passProbabilityModel()
-        df_with_preds = pp_model.run_pipeline
+        df_with_preds = pp_model.run_pipeline()
         df_with_preds.to_csv("pp_model_output.csv", index=False)
     except FileNotFoundError:
         print("Error: 'statsbomb_chained_dataset.csv' not found.")
