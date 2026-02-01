@@ -253,27 +253,27 @@ def start_app():
             # keeper for team in entry [1]
             data_dict[f'keeper_2_team'] = 0  # defender keeper
 
-            from backend.generalpv.expectedThreatModel import ExpectedThreatModel
-            xT = ExpectedThreatModel()
-            xT.load_model(os.path.join(os.path.dirname(
-                __file__), "models/xT_model.pkl"))
+            # from backend.generalpv.expectedThreatModel import ExpectedThreatModel
+            # xT = ExpectedThreatModel()
+            # xT.load_model(os.path.join(os.path.dirname(
+            #     __file__), "models/xT_model.pkl"))
 
-            pxT_value = xT.calculate_expected_threat(**data_dict)
+            # pxT_value = xT.calculate_expected_threat(**data_dict)
             
-            return json.dumps(pxT_value)
+            # return json.dumps(pxT_value)
 
-            # # Use xG model instead of xT model
-            # from backend.generalpv.xg import ExpectedGoalModel
-            # xg_model = ExpectedGoalModel(skip_training=True)
-            # # Model is in the root models directory
-            # model_path = os.path.join(os.path.dirname(os.path.dirname(
-            #     __file__)), "models/xg_model_360.pkl")
-            # xg_model.load_model(model_path)
+            # Use xG model instead of xT model
+            from backend.generalpv.xg import ExpectedGoalModel
+            xg_model = ExpectedGoalModel(skip_training=True)
+            # Model is in the root models directory
+            model_path = os.path.join(os.path.dirname(os.path.dirname(
+                __file__)), "models/xg_model_360.pkl")
+            xg_model.load_model(model_path)
 
-            # xg_value = xg_model.calculate_expected_goal(**data_dict)
+            xg_value = xg_model.calculate_expected_goal(**data_dict)
 
-            # # Return xG value in the same format as before
-            # return json.dumps({"xG": xg_value})
+            # Return xG value in the same format as before
+            return json.dumps({"xG": xg_value})
 
     @app.route("/generate-positions", methods=["GET"])
     def generate_positions():
