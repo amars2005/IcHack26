@@ -17,6 +17,9 @@ type MenuBarProps = {
   onCalculateXT: () => Promise<void>;
   xTResult: XTResult | null;
   xTLoading: boolean;
+  showHeatmap: boolean;
+  onToggleHeatmap: () => void;
+  hasHeatmapData: boolean;
   aiRefusalMessage?: string | null;
   teamName?: string;
   teamColor?: string;
@@ -35,6 +38,9 @@ export function MenuBar({
   onCalculateXT,
   xTResult,
   xTLoading,
+  showHeatmap,
+  onToggleHeatmap,
+  hasHeatmapData,
   aiRefusalMessage,
   teamName,
   teamColor,
@@ -306,6 +312,99 @@ export function MenuBar({
           </div>
         </div>
 
+
+        {/* Calculate xT Section */}
+        <div style={{ marginBottom: '24px' }}>
+          <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Expected Threat (xT)</h3>
+          <button
+            onClick={onCalculateXT}
+            disabled={xTLoading}
+            style={{
+              padding: '12px',
+              background: xTLoading ? '#6b7280' : '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: xTLoading ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              width: '100%',
+              opacity: xTLoading ? 0.6 : 1,
+            }}
+          >
+            {xTLoading ? 'Calculating...' : 'Calculate xT'}
+          </button>
+
+          {xTResult && (
+            <div style={{
+              marginTop: '12px',
+              padding: '12px',
+              background: xTResult.error ? '#7f1d1d' : '#065f46',
+              borderRadius: '4px',
+              fontSize: '13px',
+            }}>
+              {xTResult.error ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '16px' }}>✗</span>
+                  <span>{xTResult.error}</span>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>xT Value:</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                    {typeof xTResult === 'number' 
+                      ? xTResult.toFixed(4)
+                      : typeof xTResult.xT === 'number'
+                        ? xTResult.xT.toFixed(4)
+                        : JSON.stringify(xTResult, null, 2)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Heatmap toggle */}
+          {hasHeatmapData && (
+            <div style={{ marginTop: '12px' }}>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px',
+                cursor: 'pointer',
+                fontSize: '14px',
+              }}>
+                <input
+                  type="checkbox"
+                  checked={showHeatmap}
+                  onChange={onToggleHeatmap}
+                  style={{ 
+                    width: '18px', 
+                    height: '18px',
+                    cursor: 'pointer',
+                  }}
+                />
+                Show xT Heatmap
+              </label>
+              <div style={{ 
+                marginTop: '8px', 
+                fontSize: '11px', 
+                color: '#9ca3af',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}>
+                <span style={{ 
+                  display: 'inline-block', 
+                  width: '60px', 
+                  height: '8px', 
+                  background: 'linear-gradient(to right, blue, cyan, lime, yellow, red)',
+                  borderRadius: '2px',
+                }} />
+                <span>Low → High xT</span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Instructions */}
         <div style={{ fontSize: '12px', color: '#9ca3af', lineHeight: '1.6' }}>

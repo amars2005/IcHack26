@@ -35,9 +35,17 @@ export interface PitchState {
   ballId: string | null;
 }
 
+// Heatmap data from NN model
+export type HeatmapData = {
+  heatmap: number[][];  // 2D array [rows][cols] of xT values
+  x_coords: number[];   // X coordinates for each column
+  y_coords: number[];   // Y coordinates for each row
+};
+
 // xT calculation result from backend
 export type XTResult = {
   xT?: number;
+  heatmap?: HeatmapData | null;
   error?: string;
   [key: string]: unknown;
 };
