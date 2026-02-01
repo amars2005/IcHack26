@@ -22,6 +22,8 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [xTResult, setXTResult] = useState<any | null>(null);
   const [xTLoading, setXTLoading] = useState(false);
+  const [testResult, setTestResult] = useState<any | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
   type Move = { id: string; type: 'pass' | 'shoot' | 'dribble' | 'other'; targetId?: string | null; description: string; score?: number };
   const [moves, setMoves] = useState<Move[]>([]);
   
@@ -109,6 +111,23 @@ function App() {
       setXTResult(await resp.json());
     } catch (err) { setXTResult({ error: 'xT failed' }); }
     finally { setXTLoading(false); }
+  };
+
+  const handleTestEndpoint = async () => {
+    setTestLoading(true);
+    try {
+      const attackers = players.filter((p) => p.type === 'attacker').map((p) => ({ x: p.position.x, y: p.position.y, id: p.id, team: 1 }));
+      const defenders = players.filter((p) => p.type === 'defender').map((p) => ({ x: p.position.x, y: p.position.y, id: p.id, team: 0 }));
+      const keepers = players.filter(p => p.id === '1' || p.id === 'd1').map(p => ({ x: p.position.x, y: p.position.y, id: p.id, team: p.id === '1' ? 1 : 0 }));
+      const resp = await fetch('http://localhost:5001/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ attackers, defenders, keepers, ball_id: ballCarrier }) });
+      const result = await resp.json();
+      setTestResult(result);
+      console.log('Test endpoint result:', result);
+    } catch (err) { 
+      setTestResult({ error: 'Test endpoint failed' }); 
+      console.error('Test endpoint error:', err);
+    }
+    finally { setTestLoading(false); }
   };
 
   const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight });
@@ -316,6 +335,26 @@ function App() {
                 <div style={{ marginTop: 10, padding: 8, background: '#071025', borderRadius: 6, fontSize: 12 }}>
                   <div style={{ fontWeight: 700, marginBottom: 6 }}>xT result</div>
                   <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 11 }}>{JSON.stringify(xTResult, null, 2)}</pre>
+                </div>
+              )}
+            </div>
+
+            {/* Test Endpoint */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', marginBottom: '6px', color: '#9ca3af' }}>Test Endpoint</label>
+              <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: 0 }}>Call the /test endpoint with current positions.</p>
+              <button
+                onClick={handleTestEndpoint}
+                disabled={testLoading}
+                style={{ marginTop: '8px', padding: '10px', background: testLoading ? '#374151' : '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: testLoading ? 'not-allowed' : 'pointer', fontSize: '13px', width: '100%' }}
+              >
+                {testLoading ? 'Testing…' : 'Call /test Endpoint'}
+              </button>
+
+              {testResult && (
+                <div style={{ marginTop: 10, padding: 8, background: '#071025', borderRadius: 6, fontSize: 12 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Test result</div>
+                  <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 11 }}>{JSON.stringify(testResult, null, 2)}</pre>
                 </div>
               )}
             </div>

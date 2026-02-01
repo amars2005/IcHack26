@@ -11,6 +11,11 @@ import pandas as pd
 from typing import Dict, List, Tuple, Optional
 import math
 
+# Fix for Apple Silicon segfault - must be set BEFORE importing torch
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

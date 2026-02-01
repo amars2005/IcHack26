@@ -5,7 +5,16 @@ Provides the same interface as ExpectedThreatModelSimple for easy integration.
 
 import os
 import sys
+
+# Fix for Apple Silicon segfault - must be set BEFORE importing torch
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
+
 import torch
+# Force CPU to avoid MPS issues on Apple Silicon
+torch.set_default_device('cpu')
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -41,11 +50,8 @@ class ExpectedThreatModelNN:
         self.max_teammates = 12
         self.max_opponents = 12
         
-        # Auto-detect device
-        if device is None:
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        else:
-            self.device = torch.device(device)
+        # Force CPU to avoid segfaults on Apple Silicon
+        self.device = torch.device('cpu')
         
         # Default paths
         if model_path is None:

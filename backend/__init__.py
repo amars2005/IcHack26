@@ -210,88 +210,102 @@ def start_app():
         """
         Test route to verify backend is operational.
         """
-        if request.method == "POST":
-            data = request.get_json()
+        try:
+            if request.method == "POST":
+                data = request.get_json()
 
-            if not data:
-                return {"error": "No data provided"}, 400
+                if not data:
+                    return {"error": "No data provided"}, 400
 
-            #  process data
-            attackers = data.get("attackers", [])
-            defenders = data.get("defenders", [])
-            keepers = data.get("keepers", [])
+                #  process data
+                attackers = data.get("attackers", [])
+                defenders = data.get("defenders", [])
+                keepers = data.get("keepers", [])
 
-            ball_id = data["ball_id"]
-            ball_position = next(
-                ({"x": p["x"], "y": p["y"]}
-                 for p in attackers if p["id"] == ball_id),
-                None)
+                ball_id = data["ball_id"]
+                # Ball carrier could be in attackers or keepers
+                ball_position = next(
+                    ({"x": p["x"], "y": p["y"]}
+                     for p in attackers if p["id"] == ball_id),
+                    None)
 
-            if ball_position is None:
-                raise ValueError(
-                    "Ball position could not be determined from ball_id.")
+                # If not in attackers, check keepers
+                if ball_position is None:
+                    ball_position = next(
+                        ({"x": k["x"], "y": k["y"]}
+                         for k in keepers if k["id"] == ball_id),
+                        None)
 
-            data_dict = {
-                "ball_x": ball_position['x'],
-                "ball_y": ball_position['y'],
-            }
+                if ball_position is None:
+                    return {"error": f"Ball position could not be determined from ball_id: {ball_id}"}, 400
 
-            # Attackers: p0 through p9 (10 outfield players)
-            for i in range(len(attackers)):
-                data_dict[f"p{i}_x"] = attackers[i]["x"]
-                data_dict[f"p{i}_y"] = attackers[i]["y"]
-                data_dict[f'p{i}_team'] = 1  # attacker
+                data_dict = {
+                    "ball_x": ball_position['x'],
+                    "ball_y": ball_position['y'],
+                }
 
-            # Defenders: p10 through p19 (10 outfield players)
-            for i in range(len(defenders)):
-                data_dict[f"p{i+10}_x"] = defenders[i]["x"]
-                data_dict[f"p{i+10}_y"] = defenders[i]["y"]
-                data_dict[f'p{i+10}_team'] = 0  # defender
+                # Attackers: p0 through p9 (10 outfield players)
+                for i in range(len(attackers)):
+                    data_dict[f"p{i}_x"] = attackers[i]["x"]
+                    data_dict[f"p{i}_y"] = attackers[i]["y"]
+                    data_dict[f'p{i}_team'] = 1  # attacker
 
-            data_dict[f"keeper_1_x"] = keepers[0]["x"]
-            data_dict[f"keeper_1_y"] = keepers[0]["y"]
-            # keeper for team in entry [0]
-            data_dict[f'keeper_1_team'] = 1  # attacker keeper
+                # Defenders: p10 through p19 (10 outfield players)
+                for i in range(len(defenders)):
+                    data_dict[f"p{i+10}_x"] = defenders[i]["x"]
+                    data_dict[f"p{i+10}_y"] = defenders[i]["y"]
+                    data_dict[f'p{i+10}_team'] = 0  # defender
 
-            data_dict[f"keeper_2_x"] = keepers[1]["x"]
-            data_dict[f"keeper_2_y"] = keepers[1]["y"]
-            # keeper for team in entry [1]
-            data_dict[f'keeper_2_team'] = 0  # defender keeper
+                data_dict[f"keeper_1_x"] = keepers[0]["x"]
+                data_dict[f"keeper_1_y"] = keepers[0]["y"]
+                # keeper for team in entry [0]
+                data_dict[f'keeper_1_team'] = 1  # attacker keeper
 
-            try:
-                from backend.generalpv.expectedThreatModelNN import ExpectedThreatModelNN
-                if MODEL_MODE == "nn":
-                    xT = ExpectedThreatModelNN()
-                    xT.load_model()
-                else:
-                    from backend.generalpv.expectedThreatModel import ExpectedThreatModel
-                    xT = ExpectedThreatModel(skip_training=True)
-                    xT.load_model(os.path.join(os.path.dirname(
-                        __file__), "models/xt_nn_model.pkl"))
+                data_dict[f"keeper_2_x"] = keepers[1]["x"]
+                data_dict[f"keeper_2_y"] = keepers[1]["y"]
+                # keeper for team in entry [1]
+                data_dict[f'keeper_2_team'] = 0  # defender keeper
 
-            except Exception as e:
-                return {"error": f"Model loading failed: {e}"}, 500
-
-            pxT_value = xT.calculate_expected_threat(**data_dict)
-
-            # Generate heatmap if supported (NN model only)
-            heatmap_data = None
-            if MODEL_MODE == "nn" and hasattr(xT, 'generate_heatmap'):
                 try:
-                    # Use 48x32 grid for higher resolution
-                    heatmap_data = xT.generate_heatmap(
-                        grid_size=(48, 32), **data_dict)
+                    if MODEL_MODE == "nn":
+                        from backend.generalpv.expectedThreatModelNN import ExpectedThreatModelNN
+                        xT = ExpectedThreatModelNN()
+                        xT.load_model()
+                    else:
+                        from backend.generalpv.expectedThreatModel import ExpectedThreatModel
+                        xT = ExpectedThreatModel(skip_training=True)
+                        xT.load_model(os.path.join(os.path.dirname(
+                            __file__), "models/xt_nn_model.pkl"))
+
                 except Exception as e:
-                    print(f"Heatmap generation failed: {e}")
-                    heatmap_data = None
+                    import traceback
+                    traceback.print_exc()
+                    return {"error": f"Model loading failed: {e}"}, 500
 
-            print("Predicted xT:", pxT_value)
+                pxT_value = xT.calculate_expected_threat(**data_dict)
 
-            response_data = {
-                "xT": pxT_value,
-                "heatmap": heatmap_data
-            }
-            return json.dumps(response_data)
+                # Generate heatmap if supported (NN model only)
+                heatmap_data = None
+                if MODEL_MODE == "nn" and hasattr(xT, 'generate_heatmap'):
+                    try:
+                        # Use 48x32 grid for higher resolution
+                        heatmap_data = xT.generate_heatmap(
+                            grid_size=(48, 32), **data_dict)
+                    except Exception as e:
+                        print(f"Heatmap generation failed: {e}")
+                        heatmap_data = None
+
+                print("Predicted xT:", pxT_value)
+
+                response_data = {
+                    "xT": pxT_value,
+                    "heatmap": heatmap_data
+                }
+                return json.dumps(response_data)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"error": f"Server error: {str(e)}"}, 500
 
     @app.route("/", methods=["POST"])
     def predictions():
@@ -310,14 +324,21 @@ def start_app():
             keepers = data.get("keepers", [])
 
             ball_id = data["ball_id"]
+            # Ball carrier could be in attackers or keepers
             ball_position = next(
                 ({"x": p["x"], "y": p["y"]}
                  for p in attackers if p["id"] == ball_id),
                 None)
 
+            # If not in attackers, check keepers
             if ball_position is None:
-                raise ValueError(
-                    "Ball position could not be determined from ball_id.")
+                ball_position = next(
+                    ({"x": k["x"], "y": k["y"]}
+                     for k in keepers if k["id"] == ball_id),
+                    None)
+
+            if ball_position is None:
+                return {"error": f"Ball position could not be determined from ball_id: {ball_id}"}, 400
 
             data_dict = {
                 "ball_x": ball_position['x'],
