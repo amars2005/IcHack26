@@ -20,20 +20,20 @@ MAX_CARRY_DIST = 10.0
 def get_closest_opponent_distance(ball_position: dict, defenders: list) -> float:
     """
     Calculate the distance to the closest opponent (defender) from the ball position.
-    
+
     Args:
         ball_position: Dict with 'x' and 'y' coordinates of the ball
         defenders: List of defender dicts with 'x' and 'y' coordinates
-    
+
     Returns:
         Distance to the closest opponent in meters
     """
     if not defenders:
         return float('inf')
-    
+
     ball_x = ball_position['x']
     ball_y = ball_position['y']
-    
+
     min_dist = float('inf')
     for defender in defenders:
         dx = defender['x'] - ball_x
@@ -415,10 +415,11 @@ def start_app():
             # CARRY MODEL
             from backend.generalpv.carryModel import CarryModel
             carry_model = CarryModel()
-            
+
             # Check if closest opponent is within MIN_CARRY_DIST - if so, carry is not viable
-            closest_opponent_dist = get_closest_opponent_distance(ball_position, defenders)
-            
+            closest_opponent_dist = get_closest_opponent_distance(
+                ball_position, defenders)
+
             if closest_opponent_dist > MAX_CARRY_DIST:
                 # Opponent too close - carry not viable
                 actions["carry"] = {"xT": None}
@@ -426,9 +427,9 @@ def start_app():
                 carry_result = carry_model.calculate_carry_score(data_dict)
                 if carry_result:
                     actions["carry"] = {
-                        "xT": normalize_value("xT", carry_result["predicted_xt"]),
+                        "xT": carry_result["predicted_xt"],
                         "xT_gain": carry_result["xt_gain"],
-                        "score": carry_result["score"]
+                        "score": normalize_value("score", carry_result["score"])
                     }
                 else:
                     actions["carry"] = {"xT": None}
