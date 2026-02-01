@@ -42,6 +42,7 @@ export function MenuBar({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [annotatedImage, setAnnotatedImage] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const attackers = players.filter((p) => p.type === 'attacker');
 
@@ -64,6 +65,7 @@ export function MenuBar({
     if (!imageFile) return;
     setImageLoading(true);
     setImageError(null);
+    setAnnotatedImage(null);
     try {
       // Create preview URL for the image
       const previewUrl = URL.createObjectURL(imageFile);
@@ -79,6 +81,11 @@ export function MenuBar({
       // Update pitch state if we got valid position data
       if (data.attackers && data.defenders && data.ball_id) {
         onImagePositions(data.attackers, data.defenders, data.ball_id);
+        
+        // Set annotated image if returned
+        if (data.annotated_image) {
+          setAnnotatedImage(data.annotated_image);
+        }
       } else if (data.error) {
         setImageError(data.error);
       }
@@ -87,6 +94,7 @@ export function MenuBar({
       const msg = err instanceof Error ? err.message : String(err);
       setImageError(`Upload failed: ${msg}`);
       setImagePreview(null);
+      setAnnotatedImage(null);
     } finally {
       setImageLoading(false);
     }
@@ -198,13 +206,46 @@ export function MenuBar({
             </div>
           )}
 
-          {imagePreview && (
-            <div style={{ marginTop: 8, borderRadius: 6, overflow: 'hidden' }}>
-              <img 
-                src={imagePreview} 
-                alt="Uploaded pitch" 
-                style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 6 }} 
-              />
+          {(imagePreview || annotatedImage) && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ 
+                display: 'flex', 
+                gap: '8px', 
+                flexDirection: 'column'
+              }}>
+                {imagePreview && (
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>Original Image</div>
+                    <img 
+                      src={imagePreview} 
+                      alt="Uploaded pitch" 
+                      style={{ 
+                        width: '100%', 
+                        height: 'auto', 
+                        display: 'block', 
+                        borderRadius: 6,
+                        border: '1px solid #4b5563'
+                      }} 
+                    />
+                  </div>
+                )}
+                {annotatedImage && (
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>Detected Players</div>
+                    <img 
+                      src={annotatedImage} 
+                      alt="Annotated pitch with players highlighted" 
+                      style={{ 
+                        width: '100%', 
+                        height: 'auto', 
+                        display: 'block', 
+                        borderRadius: 6,
+                        border: '2px solid #06b6d4'
+                      }} 
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
