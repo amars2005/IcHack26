@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Branding SVG wrapper: this file embeds `branding.png` from the same folder.
+  Drop your PNG at `frontend/haggin/public/branding.png` and the app will show it
+  via this SVG wrapper so it behaves like an SVG asset.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 850 350" preserveAspectRatio="xMidYMid meet">
+  <image href="branding.png" x="0" y="0" width="850" height="350" preserveAspectRatio="xMidYMid meet" />
+</svg>
