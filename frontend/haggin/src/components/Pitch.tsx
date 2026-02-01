@@ -9,9 +9,10 @@ type PitchProps = {
   scale?: number;
   teamColor?: string;
   opponentColor?: string;
+  onAssignBall?: (id: string) => void;
 };
 
-export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1, teamColor, opponentColor }: PitchProps) {
+export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1, teamColor, opponentColor, onAssignBall }: PitchProps) {
   const goalWidth = 20;
   const penaltyBoxWidth = 18;
   const penaltyBoxHeight = 44;
@@ -192,6 +193,7 @@ export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1, teamColor
           onDragEnd={onPlayerMove}
           teamColor={teamColor}
           opponentColor={opponentColor}
+          onRightClick={onAssignBall}
         />
       ))}
     </svg>

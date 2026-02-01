@@ -90,6 +90,10 @@ export function PlayerInfo({ playerId, playerPosition, metrics, onClose }: Playe
           );
         })}
       </div>
+
+      <div style={{ marginTop: 12, fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>
+        Right-click a player to give them the ball.
+      </div>
     </div>
   );
 }
