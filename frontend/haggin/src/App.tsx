@@ -137,6 +137,18 @@ function App() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // Inject Poppins font for softer, rounded team title
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!document.getElementById('poppins-font')) {
+      const l = document.createElement('link');
+      l.id = 'poppins-font';
+      l.rel = 'stylesheet';
+      l.href = 'https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,600;0,700;0,800;1,700;1,800&display=swap';
+      document.head.appendChild(l);
+    }
+  }, []);
+
   const sidebarWidth = 400; // Slightly wider to accommodate internal menu padding
   const horizontalPadding = 80;
   const verticalPadding = 60;
@@ -190,7 +202,7 @@ function App() {
         }}
       >
         {!isPitchFullscreen && (
-          <div style={{ position: 'absolute', left: 64, top: 20, zIndex: 10 }}>
+          <div style={{ position: 'absolute', left: 64, top: 12, zIndex: 10 }}>
             {editingTeamName ? (
               <input
                 ref={teamInputRef}
@@ -205,23 +217,53 @@ function App() {
                     setEditingTeamName(false);
                   }
                 }}
-                style={{ margin: 0, fontSize: 36, fontWeight: 900, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', padding: '6px 10px', borderRadius: 6, color: teamColor }}
+                style={{ margin: 0, fontSize: 36, fontWeight: 800, fontFamily: "'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial", letterSpacing: '0.02em', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', padding: '6px 10px', borderRadius: 6, color: teamColor }}
               />
             ) : (
-              <h1 onClick={() => setEditingTeamName(true)} style={{ margin: 0, fontSize: 36, fontWeight: 900, color: teamColor, cursor: 'pointer' }}>{teamName.toUpperCase()}</h1>
+              <h1 onClick={() => setEditingTeamName(true)} style={{ margin: 0, fontSize: 46, fontWeight: 800, fontStyle: 'italic', fontFamily: "'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial", letterSpacing: '0.01em', color: teamColor, cursor: 'pointer' }}>{teamName.toUpperCase()}</h1>
             )}
           </div>
         )}
 
-        <div style={{ position: 'absolute', right: 20, top: 20, zIndex: 50 }}>
+        <div style={{ position: 'absolute', right: 64, top: 12, zIndex: 50 }}>
           <button
+            aria-label={isPitchFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
             onClick={async () => {
               if (!document.fullscreenElement) await pitchContainerRef.current?.requestFullscreen();
               else await document.exitFullscreen();
             }}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 15px', borderRadius: 8, cursor: 'pointer' }}
+            title={isPitchFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: '#fff',
+              width: 44,
+              height: 44,
+              padding: 8,
+              borderRadius: 10,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
           >
-            {isPitchFullscreen ? 'EXIT' : 'FULLSCREEN'}
+            {isPitchFullscreen ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 3H5a2 2 0 0 0-2 2v4" />
+                <path d="M21 9V5a2 2 0 0 0-2-2h-4" />
+                <path d="M3 15v4a2 2 0 0 0 2 2h4" />
+                <path d="M15 21h4a2 2 0 0 0 2-2v-4" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9V5a2 2 0 0 1 2-2h4" />
+                <path d="M21 15v4a2 2 0 0 1-2 2h-4" />
+                <path d="M21 9V5a2 2 0 0 0-2-2h-4" opacity="0" />
+                <path d="M3 15v4a2 2 0 0 0 2 2h4" opacity="0" />
+                <path d="M21 3l-6 6" />
+                <path d="M3 21l6-6" />
+              </svg>
+            )}
           </button>
         </div>
 
@@ -257,60 +299,14 @@ function App() {
             <BrandingImage />
           </div>
 
-          {/* BOX 1: SUGGESTED MOVES */}
-          <div style={{ background: 'linear-gradient(90deg, rgba(124,58,237,0.08), rgba(99,102,241,0.03))', padding: '16px', borderRadius: '14px', border: '1px solid rgba(124,58,237,0.18)', boxShadow: '0 8px 30px rgba(2,6,23,0.6)', flexShrink: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <h3 style={{ margin: 0, fontSize: 13, color: '#e6eef8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Top 5 Moves</h3>
-              <button onClick={fetchSuggestedMoves} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', padding: '6px 8px', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>Suggest</button>
-            </div>
-            <ol style={{ margin: 0, paddingLeft: 16, color: '#e6eef8', fontSize: 14 }}>
-              {moves.length === 0 ? (
-                <li style={{ color: '#cbd5e1' }}>No suggestions yet — click Suggest</li>
-              ) : (
-                moves.map((m, i) => (
-                  <li key={m.id} style={{ marginBottom: 8, display: 'flex', gap: 10, alignItems: 'center', padding: '10px', borderRadius: 10, background: i === 0 ? 'linear-gradient(90deg, rgba(246,201,77,0.18), rgba(255,242,179,0.06))' : 'transparent', border: i === 0 ? '1px solid rgba(246,201,77,0.25)' : 'none', boxShadow: i === 0 ? '0 8px 22px rgba(246,201,77,0.08)' : 'none' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {i === 0 && <span style={{ color: '#f6c94d', fontSize: 18, lineHeight: 1 }}>★</span>}
-                      <div style={{ fontWeight: 900, width: 24, color: i === 0 ? '#ffffff' : '#e6eef8' }}>{i + 1}</div>
-                    </div>
-                    <div style={{ flex: 1, fontSize: 15, fontWeight: i === 0 ? 800 : 600, color: i === 0 ? '#ffffff' : '#e6eef8' }}>{m.description}</div>
-                    <div style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 11, padding: '5px 10px', borderRadius: 999, background: i === 0 ? '#fff7e6' : '#0b1224', color: i === 0 ? '#704c00' : '#c7b3ff', border: i === 0 ? '1px solid rgba(124,58,237,0.06)' : '1px solid rgba(124,58,237,0.2)' }}>{m.type}</span>
-                      {m.score != null && <span style={{ fontSize: 12, color: i === 0 ? '#6b5a00' : '#9ca3af' }}>{m.score.toFixed(2)}</span>}
-                    </div>
-                  </li>
-                ))
-              )}
-            </ol>
-          </div>
-
           {/* BOX 2: PLAYER INFO (moved to top) */}
-          <div style={{ flexShrink: 0 }}>
+          <div style={{ flexShrink: 0, background: 'linear-gradient(180deg, rgba(15,23,42,0.7), rgba(11,18,36,0.6))', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)', boxShadow: '0 8px 20px rgba(2,6,23,0.6)' }}>
             <PlayerInfo
               playerId={ballCarrier}
               playerPosition={selectedPlayerPosition || undefined}
               metrics={selectedMetrics}
               onClose={undefined}
             />
-          </div>
-
-          {/* BOX 2: TEAM SETTINGS */}
-          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
-            <h2 style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em' }}>Team Settings</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Team Name" style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px' }} />
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <input type="color" value={teamColor} onChange={(e) => setTeamColor(e.target.value)} style={{ width: '45px', height: '40px', border: 'none', background: 'none', cursor: 'pointer' }} />
-                <select value={formation} onChange={(e) => {
-                  const val = e.target.value;
-                  setFormation(val);
-                  const preset = FORMATION_PRESETS.find(p => p.name === val);
-                  if (preset) handleLoadPreset(preset);
-                }} style={{ flex: 1, background: '#1e293b', border: '1px solid #334155', color: '#fff', borderRadius: '6px', padding: '0 10px' }}>
-                  {FORMATION_PRESETS.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
-                </select>
-              </div>
-            </div>
           </div>
 
           {/* BOX 2: DECISION ENGINE */}
@@ -441,7 +437,7 @@ function App() {
                               fontWeight: 700, 
                               color: bestPass.score > 0 ? '#22c55e' : '#ef4444'
                             }}>
-                              {bestPass.score > 0 ? '+' : ''}{(bestPass.score * 100).toFixed(2)}
+                              {bestPass.score > 0 ? '+' : ''}{(bestPass.score * 100).toFixed(2)}%
                             </div>
                           </div>
                           <div style={{ display: 'flex', gap: '12px', fontSize: '10px' }}>
@@ -452,12 +448,12 @@ function App() {
                             <div>
                               <span style={{ color: '#6b7280' }}>Gain: </span>
                               <span style={{ color: bestPass.reward > 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
-                                {bestPass.reward > 0 ? '+' : ''}{(bestPass.reward * 100).toFixed(1)}
+                                {bestPass.reward > 0 ? '+' : ''}{(bestPass.reward * 100).toFixed(1)}%
                               </span>
                             </div>
                             <div>
                               <span style={{ color: '#6b7280' }}>Risk: </span>
-                              <span style={{ color: '#f87171', fontWeight: 600 }}>{(bestPass.risk * 100).toFixed(1)}</span>
+                              <span style={{ color: '#f87171', fontWeight: 600 }}>{(bestPass.risk * 100).toFixed(1)}%</span>
                             </div>
                           </div>
                         </div>
@@ -481,7 +477,7 @@ function App() {
                                 fontWeight: 600,
                                 color: score > 0 ? '#22c55e' : score < -0.01 ? '#ef4444' : '#fbbf24'
                               }}>
-                                {score > 0 ? '+' : ''}{(score * 100).toFixed(2)}
+                                {score > 0 ? '+' : ''}{(score * 100).toFixed(2)}%
                               </span>
                             </div>
                           ))}
@@ -500,26 +496,7 @@ function App() {
             )}
           </div>
 
-          {/* BOX 3: TEST ENDPOINT (collapsed) */}
-          <details style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <summary style={{ fontSize: '11px', color: '#6b7280', cursor: 'pointer' }}>🔧 Debug: Test Endpoint</summary>
-            <div style={{ marginTop: '12px' }}>
-              <button
-                onClick={handleTestEndpoint}
-                disabled={testLoading}
-                style={{ padding: '8px', background: testLoading ? '#374151' : '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: testLoading ? 'not-allowed' : 'pointer', fontSize: '12px', width: '100%' }}
-              >
-                {testLoading ? 'Testing…' : 'Call /test'}
-              </button>
-              {testResult && (
-                <pre style={{ marginTop: '8px', padding: '8px', background: '#071025', borderRadius: '6px', fontSize: '10px', whiteSpace: 'pre-wrap', overflow: 'auto', maxHeight: '150px' }}>
-                  {JSON.stringify(testResult, null, 2)}
-                </pre>
-              )}
-            </div>
-          </details>
-
-          {/* BOX 4: AI SITUATION GENERATOR */}
+          {/* BOX 3: AI SITUATION GENERATOR */}
           <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <h2 style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>✨</span> AI Scenario Generator
@@ -557,6 +534,45 @@ function App() {
             )}
           </div>
 
+          {/* BOX 4: TEAM SETTINGS */}
+          <div style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 8px 24px rgba(2,6,23,0.6)', backdropFilter: 'blur(6px)', flexShrink: 0 }}>
+            <h2 style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', marginBottom: '14px', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: 13, lineHeight: 1 }}>⚙️</span>
+              Team Settings
+            </h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>
+                Appearance and formation for the active view.
+              </div>
+              <input
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="Team Name"
+                style={{ width: '100%', background: 'rgba(11,18,36,0.6)', border: '1px solid rgba(255,255,255,0.04)', color: '#fff', padding: '10px 12px', borderRadius: '8px', fontSize: 15, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)'}}
+              />
+
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 8, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0b1224', border: '1px solid rgba(255,255,255,0.04)', boxShadow: '0 4px 10px rgba(11,18,36,0.6)' }}>
+                    <input type="color" value={teamColor} onChange={(e) => setTeamColor(e.target.value)} style={{ width: '100%', height: '100%', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }} />
+                  </div>
+                </div>
+
+                <select value={formation} onChange={(e) => {
+                  const val = e.target.value;
+                  setFormation(val);
+                  const preset = FORMATION_PRESETS.find(p => p.name === val);
+                  if (preset) handleLoadPreset(preset);
+                }} style={{ flex: 1, background: 'rgba(11,18,36,0.5)', border: '1px solid rgba(255,255,255,0.04)', color: '#fff', borderRadius: '8px', padding: '10px 12px', fontSize: 13 }}>
+                  {FORMATION_PRESETS.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+                </select>
+              </div>
+
+              
+            </div>
+          </div>
+
           {/* BOX 5: PRESET SITUATIONS */}
           <details style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <summary style={{ fontSize: '11px', color: '#6b7280', cursor: 'pointer' }}>⚔️ Preset Situations</summary>
@@ -564,6 +580,27 @@ function App() {
               {SITUATION_PRESETS.map((preset) => (
                 <button key={preset.name} onClick={() => handleLoadPreset(preset)} style={{ padding: '8px', background: '#065f46', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>{preset.name}</button>
               ))}
+
+          {/* BOX 6: TEST ENDPOINT (collapsed) */}
+          <details style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <summary style={{ fontSize: '11px', color: '#6b7280', cursor: 'pointer' }}>🔧 Debug: Test Endpoint</summary>
+            <div style={{ marginTop: '12px' }}>
+              <button
+                onClick={handleTestEndpoint}
+                disabled={testLoading}
+                style={{ padding: '8px', background: testLoading ? '#374151' : '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: testLoading ? 'not-allowed' : 'pointer', fontSize: '12px', width: '100%' }}
+              >
+                {testLoading ? 'Testing…' : 'Call /test'}
+              </button>
+              {testResult && (
+                <pre style={{ marginTop: '8px', padding: '8px', background: '#071025', borderRadius: '6px', fontSize: '10px', whiteSpace: 'pre-wrap', overflow: 'auto', maxHeight: '150px' }}>
+                  {JSON.stringify(testResult, null, 2)}
+                </pre>
+              )}
+            </div>
+          </details>
+
+
             </div>
           </details>
           
