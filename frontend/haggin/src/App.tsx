@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Pitch } from './components/Pitch';
 import type { Player } from './types';
 import type { Preset } from './presets';
+import { FORMATION_PRESETS, SITUATION_PRESETS } from './presets';
 import type { GenerationStatus } from './types';
 import { INITIAL_PLAYERS, INITIAL_BALL_CARRIER, PITCH_WIDTH, PITCH_HEIGHT } from './constants';
 import { generateSituation, AIError, fetchPlayerMetrics } from './llm';
@@ -188,6 +189,7 @@ function App() {
           onPlayerMove={handlePlayerMove}
           scale={isPitchFullscreen ? Math.min(viewport.w / PITCH_WIDTH, viewport.h / PITCH_HEIGHT) : scale}
           teamColor={teamColor}
+          opponentColor={opponentColor}
         />
       </main>
 
@@ -205,35 +207,32 @@ function App() {
           overflowY: 'auto', 
           zIndex: 100
         }}>
-          {/* BOX 1: TEAM SETTINGS */}
-          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
-            <h2 style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em' }}>Team Settings</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Team Name" style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px' }} />
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <input type="color" value={teamColor} onChange={(e) => setTeamColor(e.target.value)} style={{ width: '45px', height: '40px', border: 'none', background: 'none', cursor: 'pointer' }} />
-                <select value={formation} onChange={(e) => setFormation(e.target.value)} style={{ flex: 1, background: '#1e293b', border: '1px solid #334155', color: '#fff', borderRadius: '6px', padding: '0 10px' }}>
-                  <option value="4-4-2">4-4-2</option>
-                  <option value="4-3-3">4-3-3</option>
-                  <option value="3-5-2">3-5-2</option>
-                  <option value="4-2-3-1">4-2-3-1</option>
-                </select>
-              </div>
-            </div>
+          {/* (duplicate Team Settings removed) */}
+
+          {/* BOX 1: PLAYER INFO (moved to top) */}
+          <div style={{ flexShrink: 0 }}>
+            <PlayerInfo
+              playerId={ballCarrier}
+              playerPosition={selectedPlayerPosition || undefined}
+              metrics={selectedMetrics}
+              onClose={undefined}
+            />
           </div>
 
-          {/* BOX 1: TEAM SETTINGS */}
+          {/* BOX 2: TEAM SETTINGS */}
           <div style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
             <h2 style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em' }}>Team Settings</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Team Name" style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px' }} />
+                <input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Team Name" style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px' }} />
               <div style={{ display: 'flex', gap: '10px' }}>
                 <input type="color" value={teamColor} onChange={(e) => setTeamColor(e.target.value)} style={{ width: '45px', height: '40px', border: 'none', background: 'none', cursor: 'pointer' }} />
-                <select value={formation} onChange={(e) => setFormation(e.target.value)} style={{ flex: 1, background: '#1e293b', border: '1px solid #334155', color: '#fff', borderRadius: '6px', padding: '0 10px' }}>
-                  <option value="4-4-2">4-4-2</option>
-                  <option value="4-3-3">4-3-3</option>
-                  <option value="3-5-2">3-5-2</option>
-                  <option value="4-2-3-1">4-2-3-1</option>
+                <select value={formation} onChange={(e) => {
+                  const val = e.target.value;
+                  setFormation(val);
+                  const preset = FORMATION_PRESETS.find(p => p.name === val);
+                  if (preset) handleLoadPreset(preset);
+                }} style={{ flex: 1, background: '#1e293b', border: '1px solid #334155', color: '#fff', borderRadius: '6px', padding: '0 10px' }}>
+                  {FORMATION_PRESETS.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
                 </select>
               </div>
             </div>
@@ -338,18 +337,18 @@ function App() {
             <div style={{ marginBottom: '12px' }}>
               <label style={{ display: 'block', fontSize: '13px', marginBottom: '8px', color: '#9ca3af' }}>Formations</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                {['4-4-2','4-3-3','3-5-2','4-2-3-1'].map((f) => (
-                  <button key={f} onClick={() => setFormation(f)} style={{ padding: '8px', background: '#0b1224', color: 'white', border: '1px solid #273449', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>{f}</button>
-                ))}
-              </div>
+                  {FORMATION_PRESETS.map((preset) => (
+                    <button key={preset.name} onClick={() => handleLoadPreset(preset)} style={{ padding: '8px', background: '#0b1224', color: 'white', border: '1px solid #273449', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>{preset.name}</button>
+                  ))}
+                </div>
             </div>
 
             {/* Attacking Situations (simple presets) */}
             <div style={{ marginBottom: '12px' }}>
               <label style={{ display: 'block', fontSize: '13px', marginBottom: '8px', color: '#9ca3af' }}>Attacking Situations</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {['Corner - near post', 'Throw-in quick', 'Counter attack', 'Set piece - edge'].map((s) => (
-                  <button key={s} onClick={() => handleLoadPreset({ name: s, players: players, ballCarrier })} style={{ padding: '8px', background: '#065f46', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>{s}</button>
+                {SITUATION_PRESETS.map((preset) => (
+                  <button key={preset.name} onClick={() => handleLoadPreset(preset)} style={{ padding: '8px', background: '#065f46', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>{preset.name}</button>
                 ))}
               </div>
             </div>
@@ -362,15 +361,7 @@ function App() {
             </div>
           </div>
 
-          {/* BOX 3: PLAYER INFO */}
-          <div style={{ flexShrink: 0 }}>
-            <PlayerInfo
-              playerId={ballCarrier}
-              playerPosition={selectedPlayerPosition || undefined}
-              metrics={selectedMetrics}
-              onClose={undefined}
-            />
-          </div>
+          
         </aside>
       )}
     </div>
