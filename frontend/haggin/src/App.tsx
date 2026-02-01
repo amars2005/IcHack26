@@ -24,7 +24,7 @@ function App() {
   const [xTLoading, setXTLoading] = useState(false);
   const [testResult, setTestResult] = useState<any | null>(null);
   const [testLoading, setTestLoading] = useState(false);
-  type Move = { id: string; type: 'pass' | 'shoot' | 'dribble' | 'other'; targetId?: string | null; description: string; score?: number };
+  type Move = { id: string; type: 'pass' | 'shoot' | 'dribble' | 'carry' | 'other'; targetId?: string | null; description: string; score?: number };
   const [moves, setMoves] = useState<Move[]>([]);
   
   const [teamName, setTeamName] = useState("FC Haggin'");
@@ -137,6 +137,18 @@ function App() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // Inject Poppins font for softer, rounded team title
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!document.getElementById('poppins-font')) {
+      const l = document.createElement('link');
+      l.id = 'poppins-font';
+      l.rel = 'stylesheet';
+      l.href = 'https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,600;0,700;0,800;1,700;1,800&display=swap';
+      document.head.appendChild(l);
+    }
+  }, []);
+
   const sidebarWidth = 400; // Slightly wider to accommodate internal menu padding
   const horizontalPadding = 80;
   const verticalPadding = 60;
@@ -190,7 +202,7 @@ function App() {
         }}
       >
         {!isPitchFullscreen && (
-          <div style={{ position: 'absolute', left: 64, top: 20, zIndex: 10 }}>
+          <div style={{ position: 'absolute', left: 64, top: 12, zIndex: 10 }}>
             {editingTeamName ? (
               <input
                 ref={teamInputRef}
@@ -205,10 +217,10 @@ function App() {
                     setEditingTeamName(false);
                   }
                 }}
-                style={{ margin: 0, fontSize: 36, fontWeight: 900, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', padding: '6px 10px', borderRadius: 6, color: teamColor }}
+                style={{ margin: 0, fontSize: 36, fontWeight: 800, fontFamily: "'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial", letterSpacing: '0.02em', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', padding: '6px 10px', borderRadius: 6, color: teamColor }}
               />
             ) : (
-              <h1 onClick={() => setEditingTeamName(true)} style={{ margin: 0, fontSize: 36, fontWeight: 900, color: teamColor, cursor: 'pointer' }}>{teamName.toUpperCase()}</h1>
+              <h1 onClick={() => setEditingTeamName(true)} style={{ margin: 0, fontSize: 46, fontWeight: 800, fontStyle: 'italic', fontFamily: "'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial", letterSpacing: '0.01em', color: teamColor, cursor: 'pointer' }}>{teamName.toUpperCase()}</h1>
             )}
           </div>
         )}
@@ -257,66 +269,17 @@ function App() {
             <BrandingImage />
           </div>
 
-          {/* BOX 1: SUGGESTED MOVES */}
-          <div style={{ background: 'linear-gradient(90deg, rgba(124,58,237,0.08), rgba(99,102,241,0.03))', padding: '16px', borderRadius: '14px', border: '1px solid rgba(124,58,237,0.18)', boxShadow: '0 8px 30px rgba(2,6,23,0.6)', flexShrink: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <h3 style={{ margin: 0, fontSize: 13, color: '#e6eef8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Top 5 Moves</h3>
-              <button onClick={fetchSuggestedMoves} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', padding: '6px 8px', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>Suggest</button>
-            </div>
-            <ol style={{ margin: 0, paddingLeft: 16, color: '#e6eef8', fontSize: 14 }}>
-              {moves.length === 0 ? (
-                <li style={{ color: '#cbd5e1' }}>No suggestions yet — click Suggest</li>
-              ) : (
-                moves.map((m, i) => (
-                  <li key={m.id} style={{ marginBottom: 8, display: 'flex', gap: 10, alignItems: 'center', padding: '10px', borderRadius: 10, background: i === 0 ? 'linear-gradient(90deg, rgba(246,201,77,0.18), rgba(255,242,179,0.06))' : 'transparent', border: i === 0 ? '1px solid rgba(246,201,77,0.25)' : 'none', boxShadow: i === 0 ? '0 8px 22px rgba(246,201,77,0.08)' : 'none' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {i === 0 && <span style={{ color: '#f6c94d', fontSize: 18, lineHeight: 1 }}>★</span>}
-                      <div style={{ fontWeight: 900, width: 24, color: i === 0 ? '#ffffff' : '#e6eef8' }}>{i + 1}</div>
-                    </div>
-                    <div style={{ flex: 1, fontSize: 15, fontWeight: i === 0 ? 800 : 600, color: i === 0 ? '#ffffff' : '#e6eef8' }}>{m.description}</div>
-                    <div style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 11, padding: '5px 10px', borderRadius: 999, background: i === 0 ? '#fff7e6' : '#0b1224', color: i === 0 ? '#704c00' : '#c7b3ff', border: i === 0 ? '1px solid rgba(124,58,237,0.06)' : '1px solid rgba(124,58,237,0.2)' }}>{m.type}</span>
-                      {m.score != null && <span style={{ fontSize: 12, color: i === 0 ? '#6b5a00' : '#9ca3af' }}>{m.score.toFixed(2)}</span>}
-                    </div>
-                  </li>
-                ))
-              )}
-            </ol>
-          </div>
-
           {/* BOX 2: PLAYER INFO (moved to top) */}
-          <div style={{ flexShrink: 0 }}>
+          <div style={{ flexShrink: 0, background: 'linear-gradient(180deg, rgba(15,23,42,0.7), rgba(11,18,36,0.6))', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)', boxShadow: '0 8px 20px rgba(2,6,23,0.6)' }}>
             <PlayerInfo
               playerId={ballCarrier}
               playerPosition={selectedPlayerPosition || undefined}
-              metrics={selectedMetrics}
-              onClose={undefined}
             />
-          </div>
-
-          {/* BOX 2: TEAM SETTINGS */}
-          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
-            <h2 style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em' }}>Team Settings</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Team Name" style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', color: '#fff', padding: '10px', borderRadius: '6px' }} />
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <input type="color" value={teamColor} onChange={(e) => setTeamColor(e.target.value)} style={{ width: '45px', height: '40px', border: 'none', background: 'none', cursor: 'pointer' }} />
-                <select value={formation} onChange={(e) => {
-                  const val = e.target.value;
-                  setFormation(val);
-                  const preset = FORMATION_PRESETS.find(p => p.name === val);
-                  if (preset) handleLoadPreset(preset);
-                }} style={{ flex: 1, background: '#1e293b', border: '1px solid #334155', color: '#fff', borderRadius: '6px', padding: '0 10px' }}>
-                  {FORMATION_PRESETS.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
-                </select>
-              </div>
-            </div>
           </div>
 
           {/* BOX 2: DECISION ENGINE */}
           <div style={{ background: 'linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)', padding: '20px', borderRadius: '12px', border: '1px solid #312e81', flexShrink: 0 }}>
-            <h2 style={{ fontSize: '16px', color: '#e2e8f0', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '20px' }}>🧠</span>
+            <h2 style={{ fontSize: '16px', color: '#e2e8f0', marginBottom: '8px' }}>
               Decision Engine
             </h2>
             <p style={{ fontSize: '11px', color: '#6b7280', marginTop: 0, marginBottom: '16px' }}>
@@ -344,57 +307,12 @@ function App() {
                 transition: 'all 0.2s ease',
               }}
             >
-              {xTLoading ? '⏳ Computing...' : '⚡ Compute Best Action'}
+              {xTLoading ? 'Computing...' : 'Compute Best Action'}
             </button>
 
-            {/* Results Display */}
+            {/* Results Display: show ranked best options first, raw xT collapsible */}
             {xTResult && !xTResult.error && (
-              <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
-                
-                {/* Current xT */}
-                {xTResult.current_xT !== undefined && xTResult.current_xT !== null && (
-                  <div style={{
-                    padding: '10px 14px',
-                    background: 'rgba(99, 102, 241, 0.1)',
-                    borderBottom: '1px solid rgba(99, 102, 241, 0.2)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <span style={{ fontSize: '11px', color: '#a5b4fc' }}>Current Position Value</span>
-                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#818cf8' }}>
-                      {((xTResult.current_xT as number) * 100).toFixed(2)}%
-                    </span>
-                  </div>
-                )}
-
-                {/* Shoot */}
-                {xTResult.shoot && (
-                  <div style={{ 
-                    padding: '12px 14px', 
-                    borderBottom: '1px solid rgba(99, 102, 241, 0.2)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '20px' }}>⚽</span>
-                      <div>
-                        <div style={{ fontWeight: 600, color: '#fbbf24', fontSize: '13px' }}>Shoot</div>
-                        <div style={{ fontSize: '9px', color: '#6b7280' }}>Expected Goal</div>
-                      </div>
-                    </div>
-                    <div style={{ 
-                      fontSize: '18px', 
-                      fontWeight: 700, 
-                      color: xTResult.shoot.xG > 0.15 ? '#22c55e' : xTResult.shoot.xG > 0.05 ? '#fbbf24' : '#ef4444'
-                    }}>
-                      {(xTResult.shoot.xG * 100).toFixed(1)}%
-                    </div>
-                  </div>
-                )}
-
-                {/* Pass Options */}
+              <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.18)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(99, 102, 241, 0.08)' }}>
                 {(() => {
                   const passActions = Object.entries(xTResult)
                     .filter(([key]) => key.startsWith('pass_to_'))
@@ -407,86 +325,68 @@ function App() {
                     }))
                     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
-                  if (passActions.length === 0) return null;
+                  const options: Array<any> = [];
+                  if (xTResult.shoot) {
+                    options.push({ id: 'shoot', label: 'Shoot', desc: 'Expected Goal', value: xTResult.shoot.xG, kind: 'shoot' });
+                  }
 
-                  const bestPass = passActions[0];
-                  const topPasses = passActions.slice(0, 5);
+                  passActions.forEach((p) => {
+                    options.push({ id: `pass_${p.playerId}`, label: `Pass to #${p.playerId}`, desc: `${(p.probability * 100).toFixed(0)}% success`, value: p.score ?? 0, kind: 'pass', meta: p });
+                  });
+
+                  const dribbleMove = moves.find(m => m.type === 'dribble');
+                  if (xTResult.dribble) options.push({ id: 'dribble', label: 'Dribble', desc: 'Dribble option', value: xTResult.dribble.score ?? 0, kind: 'dribble' });
+                  else if (dribbleMove) options.push({ id: 'dribble', label: 'Dribble', desc: dribbleMove.description, value: dribbleMove.score ?? 0, kind: 'dribble' });
+
+                  // Include carry action if present in xT results or suggested moves
+                  const carryMove = moves.find(m => m.type === 'carry');
+                  if (xTResult.carry) options.push({ id: 'carry', label: 'Carry', desc: 'Carry the ball forward', value: xTResult.carry.score ?? 0, kind: 'carry' });
+                  else if (carryMove) options.push({ id: 'carry', label: 'Carry', desc: carryMove.description, value: carryMove.score ?? 0, kind: 'carry' });
+
+                  options.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+                  const topOptions = options.slice(0, 4);
 
                   return (
-                    <div style={{ padding: '12px 14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                        <span style={{ fontSize: '20px' }}>📤</span>
-                        <div>
-                          <div style={{ fontWeight: 600, color: '#c084fc', fontSize: '13px' }}>Pass Options</div>
-                          <div style={{ fontSize: '9px', color: '#6b7280' }}>Ranked by expected value</div>
-                        </div>
+                    <div style={{ padding: '12px' }}>
+                      <div style={{ fontWeight: 700, color: '#c084fc', marginBottom: '8px', fontSize: '13px' }}>Top Recommendations</div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {topOptions.length === 0 && (
+                          <div style={{ fontSize: 12, color: '#9ca3af' }}>No suggestions available.</div>
+                        )}
+
+                        {topOptions.map((opt, idx) => {
+                          const isTop = idx === 0;
+                          return (
+                            <div
+                              key={opt.id}
+                              style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  padding: isTop ? '14px' : '10px',
+                                  borderRadius: '10px',
+                                  background: isTop ? 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(234,179,8,0.06))' : 'rgba(0,0,0,0.16)',
+                                  boxShadow: isTop ? '0 6px 18px rgba(245,158,11,0.08)' : 'none',
+                                  border: isTop ? '1px solid rgba(245,158,11,0.18)' : '1px solid rgba(255,255,255,0.02)'
+                                }}
+                            >
+                              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <div style={{ width: 30, height: 30, borderRadius: 8, background: isTop ? '#f59e0b' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', fontWeight: 700 }}>{idx + 1}</div>
+                                <div>
+                                  <div style={{ fontWeight: 800, fontSize: isTop ? 15 : 13 }}>{opt.label}</div>
+                                  <div style={{ fontSize: 11, color: '#9ca3af' }}>{opt.desc}</div>
+                                </div>
+                              </div>
+                              <div style={{ fontWeight: 800, color: opt.value > 0 ? '#16a34a' : opt.value < 0 ? '#ef4444' : '#f59e0b', fontSize: isTop ? 16 : 13 }}>
+                                {opt.kind === 'shoot' ? `${(opt.value * 100).toFixed(1)}%` : `${opt.value > 0 ? '+' : ''}${(opt.value * 100).toFixed(2)}%`}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
 
-                      {/* Best Pass */}
-                      {bestPass && (
-                        <div style={{
-                          background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)',
-                          borderRadius: '6px',
-                          padding: '10px',
-                          marginBottom: '8px',
-                          border: '1px solid rgba(34, 197, 94, 0.3)'
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontSize: '10px', background: '#22c55e', color: '#000', padding: '2px 5px', borderRadius: '3px', fontWeight: 700 }}>BEST</span>
-                              <span style={{ fontWeight: 600, fontSize: '13px' }}>#{bestPass.playerId}</span>
-                            </div>
-                            <div style={{ 
-                              fontSize: '16px', 
-                              fontWeight: 700, 
-                              color: bestPass.score > 0 ? '#22c55e' : '#ef4444'
-                            }}>
-                              {bestPass.score > 0 ? '+' : ''}{(bestPass.score * 100).toFixed(2)}
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', gap: '12px', fontSize: '10px' }}>
-                            <div>
-                              <span style={{ color: '#6b7280' }}>Prob: </span>
-                              <span style={{ color: '#22c55e', fontWeight: 600 }}>{(bestPass.probability * 100).toFixed(0)}%</span>
-                            </div>
-                            <div>
-                              <span style={{ color: '#6b7280' }}>Gain: </span>
-                              <span style={{ color: bestPass.reward > 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
-                                {bestPass.reward > 0 ? '+' : ''}{(bestPass.reward * 100).toFixed(1)}
-                              </span>
-                            </div>
-                            <div>
-                              <span style={{ color: '#6b7280' }}>Risk: </span>
-                              <span style={{ color: '#f87171', fontWeight: 600 }}>{(bestPass.risk * 100).toFixed(1)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Other top passes */}
-                      {topPasses.slice(1).length > 0 && (
-                        <div style={{ fontSize: '10px' }}>
-                          {topPasses.slice(1).map(({ playerId, probability, score }) => (
-                            <div key={playerId} style={{ 
-                              display: 'flex', 
-                              justifyContent: 'space-between', 
-                              padding: '6px 8px',
-                              background: 'rgba(0,0,0,0.2)',
-                              borderRadius: '4px',
-                              marginBottom: '4px'
-                            }}>
-                              <span>#{playerId}</span>
-                              <span style={{ color: '#6b7280' }}>{(probability * 100).toFixed(0)}% prob</span>
-                              <span style={{ 
-                                fontWeight: 600,
-                                color: score > 0 ? '#22c55e' : score < -0.01 ? '#ef4444' : '#fbbf24'
-                              }}>
-                                {score > 0 ? '+' : ''}{(score * 100).toFixed(2)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      {/* Full xT results hidden by default to keep UI focused on recommendations */}
                     </div>
                   );
                 })()}
@@ -495,14 +395,98 @@ function App() {
 
             {xTResult?.error && (
               <div style={{ marginTop: '12px', padding: '10px', background: '#7f1d1d', borderRadius: '6px', fontSize: '12px' }}>
-                <span>❌ {xTResult.error}</span>
+                <span>Error: {xTResult.error}</span>
               </div>
             )}
           </div>
 
-          {/* BOX 3: TEST ENDPOINT (collapsed) */}
+          {/* BOX 3: AI SITUATION GENERATOR */}
+          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <h2 style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '10px' }}>
+              AI Scenario Generator
+            </h2>
+            <textarea
+              value={customSituation}
+              onChange={(e) => setCustomSituation(e.target.value)}
+              placeholder="Describe an attacking situation (e.g., 'Quick throw-in near the penalty box with numbers up')"
+              style={{ width: '100%', padding: '8px', background: '#0b1224', color: 'white', border: '1px solid #273449', borderRadius: '6px', fontSize: '12px', minHeight: '60px', resize: 'vertical', fontFamily: 'inherit' }}
+            />
+            <button
+              onClick={async () => { if (!customSituation.trim()) return; await handleGenerateCustom(customSituation); }}
+              disabled={!customSituation.trim() || generationStatus === 'loading'}
+              style={{ marginTop: '8px', padding: '10px', background: generationStatus === 'loading' ? '#374151' : '#7c3aed', color: 'white', border: 'none', borderRadius: '6px', cursor: customSituation.trim() && generationStatus !== 'loading' ? 'pointer' : 'not-allowed', fontSize: '12px', width: '100%', opacity: customSituation.trim() && generationStatus !== 'loading' ? 1 : 0.7 }}
+            >
+              {generationStatus === 'loading' ? 'Generating...' : 'Generate with AI'}
+            </button>
+
+            {generationStatus === 'success' && (
+              <div style={{ marginTop: '8px', padding: '8px', background: '#065f46', borderRadius: '6px', fontSize: '12px' }}>
+                Positions generated!
+              </div>
+            )}
+
+            {generationStatus === 'error' && !aiRefusalMessage && (
+              <div style={{ marginTop: '8px', padding: '8px', background: '#7f1d1d', borderRadius: '6px', fontSize: '12px' }}>
+                Generation failed
+              </div>
+            )}
+
+            {aiRefusalMessage && (
+              <div style={{ marginTop: '8px', padding: '8px', background: '#92400e', borderRadius: '6px', fontSize: '11px' }}>
+                Warning: {aiRefusalMessage}
+              </div>
+            )}
+          </div>
+
+          {/* BOX 4: TEAM SETTINGS */}
+          <div style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 8px 24px rgba(2,6,23,0.6)', backdropFilter: 'blur(6px)', flexShrink: 0 }}>
+            <h2 style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', marginBottom: '14px', letterSpacing: '0.05em' }}>
+              Team Settings
+            </h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>
+                Appearance and formation for the active view.
+              </div>
+              <input
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="Team Name"
+                style={{ width: '100%', background: 'rgba(11,18,36,0.6)', border: '1px solid rgba(255,255,255,0.04)', color: '#fff', padding: '10px 12px', borderRadius: '8px', fontSize: 15, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)'}}
+              />
+
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 8, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0b1224', border: '1px solid rgba(255,255,255,0.04)', boxShadow: '0 4px 10px rgba(11,18,36,0.6)' }}>
+                    <input type="color" value={teamColor} onChange={(e) => setTeamColor(e.target.value)} style={{ width: '100%', height: '100%', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }} />
+                  </div>
+                </div>
+
+                <select value={formation} onChange={(e) => {
+                  const val = e.target.value;
+                  setFormation(val);
+                  const preset = FORMATION_PRESETS.find(p => p.name === val);
+                  if (preset) handleLoadPreset(preset);
+                }} style={{ flex: 1, background: 'rgba(11,18,36,0.5)', border: '1px solid rgba(255,255,255,0.04)', color: '#fff', borderRadius: '8px', padding: '10px 12px', fontSize: 13 }}>
+                  {FORMATION_PRESETS.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+                </select>
+              </div>
+
+              
+            </div>
+          </div>
+
+          {/* BOX 5: PRESET SITUATIONS */}
+            <details style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <summary style={{ fontSize: '11px', color: '#6b7280', cursor: 'pointer' }}>Preset Situations</summary>
+            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {SITUATION_PRESETS.map((preset) => (
+                <button key={preset.name} onClick={() => handleLoadPreset(preset)} style={{ padding: '8px', background: '#065f46', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>{preset.name}</button>
+              ))}
+
+          {/* BOX 6: TEST ENDPOINT (collapsed) */}
           <details style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <summary style={{ fontSize: '11px', color: '#6b7280', cursor: 'pointer' }}>🔧 Debug: Test Endpoint</summary>
+            <summary style={{ fontSize: '11px', color: '#6b7280', cursor: 'pointer' }}>Debug: Test Endpoint</summary>
             <div style={{ marginTop: '12px' }}>
               <button
                 onClick={handleTestEndpoint}
@@ -519,51 +503,7 @@ function App() {
             </div>
           </details>
 
-          {/* BOX 4: AI SITUATION GENERATOR */}
-          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <h2 style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>✨</span> AI Scenario Generator
-            </h2>
-            <textarea
-              value={customSituation}
-              onChange={(e) => setCustomSituation(e.target.value)}
-              placeholder="Describe an attacking situation (e.g., 'Quick throw-in near the penalty box with numbers up')"
-              style={{ width: '100%', padding: '8px', background: '#0b1224', color: 'white', border: '1px solid #273449', borderRadius: '6px', fontSize: '12px', minHeight: '60px', resize: 'vertical', fontFamily: 'inherit' }}
-            />
-            <button
-              onClick={async () => { if (!customSituation.trim()) return; await handleGenerateCustom(customSituation); }}
-              disabled={!customSituation.trim() || generationStatus === 'loading'}
-              style={{ marginTop: '8px', padding: '10px', background: generationStatus === 'loading' ? '#374151' : '#7c3aed', color: 'white', border: 'none', borderRadius: '6px', cursor: customSituation.trim() && generationStatus !== 'loading' ? 'pointer' : 'not-allowed', fontSize: '12px', width: '100%', opacity: customSituation.trim() && generationStatus !== 'loading' ? 1 : 0.7 }}
-            >
-              {generationStatus === 'loading' ? '⏳ Generating...' : '🎨 Generate with AI'}
-            </button>
 
-            {generationStatus === 'success' && (
-              <div style={{ marginTop: '8px', padding: '8px', background: '#065f46', borderRadius: '6px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>✓</span> Positions generated!
-              </div>
-            )}
-
-            {generationStatus === 'error' && !aiRefusalMessage && (
-              <div style={{ marginTop: '8px', padding: '8px', background: '#7f1d1d', borderRadius: '6px', fontSize: '12px' }}>
-                ❌ Generation failed
-              </div>
-            )}
-
-            {aiRefusalMessage && (
-              <div style={{ marginTop: '8px', padding: '8px', background: '#92400e', borderRadius: '6px', fontSize: '11px' }}>
-                ⚠ {aiRefusalMessage}
-              </div>
-            )}
-          </div>
-
-          {/* BOX 5: PRESET SITUATIONS */}
-          <details style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <summary style={{ fontSize: '11px', color: '#6b7280', cursor: 'pointer' }}>⚔️ Preset Situations</summary>
-            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {SITUATION_PRESETS.map((preset) => (
-                <button key={preset.name} onClick={() => handleLoadPreset(preset)} style={{ padding: '8px', background: '#065f46', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>{preset.name}</button>
-              ))}
             </div>
           </details>
           
@@ -572,5 +512,6 @@ function App() {
     </div>
   );
 }
+
 
 export default App;

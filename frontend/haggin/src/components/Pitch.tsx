@@ -19,6 +19,8 @@ type PitchProps = {
   onAssignBall?: (id: string) => void;
   heatmap?: HeatmapData | null;
   showHeatmap?: boolean;
+  moves?: Array<{ id: string; type: string; targetId?: string | null }>;
+  onExecuteMove?: (move: { id: string; type: string; targetId?: string | null }) => void;
 };
 
 // Interpolate color between blue (low) -> yellow (mid) -> red (high)
@@ -45,7 +47,7 @@ function getHeatmapColor(value: number, min: number, max: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1, heatmap, showHeatmap = true, teamColor, opponentColor, onAssignBall }: PitchProps) {
+export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1, heatmap, showHeatmap = true, teamColor, opponentColor, onAssignBall, moves = [], onExecuteMove }: PitchProps) {
   const [hoverInfo, setHoverInfo] = useState<HoverInfo>(null);
   const goalWidth = 20;
   const penaltyBoxWidth = 18;
@@ -296,6 +298,8 @@ export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1, heatmap, 
         fill="none"
       />
 
+      {/* Optimal action arrow: rendered after players to overlay them (moved below) */}
+
       {/* Players */}
       {players.map((player) => (
         <Player
@@ -309,6 +313,82 @@ export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1, heatmap, 
           onRightClick={onAssignBall}
         />
       ))}
+
+      {/* --- Optimal action arrow (render last so it overlays players) --- */}
+      {(() => {
+        try {
+          if (!moves || moves.length === 0) return null;
+          const best = moves[0];
+          if (!best) return null;
+
+          const origin = players.find(p => p.id === ballCarrier);
+          if (!origin) return null;
+
+          let tx: number | null = null;
+          let ty: number | null = null;
+
+          if (best.type === 'pass' && best.targetId) {
+            const tgt = players.find(p => p.id === best.targetId);
+            if (tgt) { tx = tgt.position.x; ty = tgt.position.y; }
+          } else if (best.type === 'shoot') {
+            tx = PITCH_WIDTH; ty = GOAL_Y;
+          } else if (best.type === 'dribble') {
+            tx = Math.min(PITCH_WIDTH, origin.position.x + 12);
+            ty = origin.position.y;
+          }
+
+          if (tx == null || ty == null) return null;
+
+          const x1 = origin.position.x;
+          const y1 = origin.position.y;
+          const x2 = tx;
+          const y2 = ty;
+
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+          const nx = dx / dist;
+          const ny = dy / dist;
+          const px = -ny;
+          const py = nx;
+          const curve = Math.min(18, dist * 0.18);
+          const cx = (x1 + x2) / 2 + px * curve;
+          const cy = (y1 + y2) / 2 + py * curve;
+
+          const pathD = `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
+
+          const arrowColor = '#fbbf24';
+
+          const txv = 2 * (x2 - cx);
+          const tyv = 2 * (y2 - cy);
+          const tlen = Math.sqrt(txv * txv + tyv * tyv) || 1;
+          const ux = txv / tlen;
+          const uy = tyv / tlen;
+          const headLen = Math.max(4, Math.min(10, dist * 0.04));
+          const baseX = x2 - ux * headLen;
+          const baseY = y2 - uy * headLen;
+          const sideX = -uy;
+          const sideY = ux;
+          const halfW = headLen * 0.38;
+          const p1x = baseX + sideX * halfW;
+          const p1y = baseY + sideY * halfW;
+          const p2x = baseX - sideX * halfW;
+          const p2y = baseY - sideY * halfW;
+
+          return (
+            <g onClick={() => { try { if (onExecuteMove) onExecuteMove(best); } catch (e) { console.error(e); } }} style={{ cursor: 'pointer' }}>
+              <path d={pathD} stroke={arrowColor} strokeWidth={1.2} strokeOpacity={0.22} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <path d={pathD} stroke={arrowColor} strokeWidth={0.9} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <path d={pathD} stroke="#fff" strokeWidth={0.35} strokeOpacity={0.18} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <polygon points={`${x2},${y2} ${p1x},${p1y} ${p2x},${p2y}`} fill={arrowColor} opacity={1} />
+            </g>
+          );
+        } catch (e) {
+          console.error('Move arrow render error', e);
+          return null;
+        }
+      })()}
     </svg>
     
     {/* xT Value Tooltip */}
