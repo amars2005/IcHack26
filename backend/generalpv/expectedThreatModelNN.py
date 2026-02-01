@@ -50,8 +50,13 @@ class ExpectedThreatModelNN:
         self.max_teammates = 12
         self.max_opponents = 12
         
-        # Force CPU to avoid segfaults on Apple Silicon
-        self.device = torch.device('cpu')
+        # Device selection: use provided device, or auto-detect
+        if device is not None:
+            self.device = torch.device(device)
+        elif torch.cuda.is_available():
+            self.device = torch.device('cuda')
+        else:
+            self.device = torch.device('cpu')
         
         # Default paths
         if model_path is None:
@@ -173,6 +178,130 @@ class ExpectedThreatModelNN:
             prob = self.calibrator.predict([prob])[0]
         
         return float(prob)
+    
+    def calculate_expected_threat_batch(self, data_list: list) -> list:
+        """
+        Calculate xT for a batch of datapoints efficiently on GPU.
+        
+        Args:
+            data_list: List of dicts, each with the same format as calculate_expected_threat kwargs
+        
+        Returns:
+            List of float xT values (None for failed samples)
+        """
+        if self.model is None:
+            raise ValueError("Model not loaded. Call load_model() first.")
+        
+        if not data_list:
+            return []
+        
+        # Process all samples
+        samples = []
+        valid_indices = []
+        
+        for i, kwargs in enumerate(data_list):
+            # Parse ball position
+            ball_x = kwargs.get('start_x', 60.0)
+            ball_y = kwargs.get('start_y', 40.0)
+            
+            # Parse players into teammates and opponents
+            teammates = []
+            opponents = []
+            team_keepers = []
+            opponent_keepers = []
+            
+            # Process outfield players (p0-p19)
+            for j in range(20):
+                px = kwargs.get(f'p{j}_x')
+                py = kwargs.get(f'p{j}_y')
+                pteam = kwargs.get(f'p{j}_team')
+                
+                if px is not None and py is not None and pteam is not None:
+                    try:
+                        player = {'x': float(px), 'y': float(py)}
+                        if pteam == 1:
+                            teammates.append(player)
+                        else:
+                            opponents.append(player)
+                    except (ValueError, TypeError):
+                        continue
+            
+            # Process keepers
+            for k in [1, 2]:
+                kx = kwargs.get(f'keeper{k}_x')
+                ky = kwargs.get(f'keeper{k}_y')
+                kteam = kwargs.get(f'keeper{k}_team')
+                
+                if kx is not None and ky is not None and kteam is not None:
+                    try:
+                        keeper = {'x': float(kx), 'y': float(ky)}
+                        if kteam == 1:
+                            team_keepers.append(keeper)
+                        else:
+                            opponent_keepers.append(keeper)
+                    except (ValueError, TypeError):
+                        continue
+            
+            # Process through NN preprocessor
+            sample = process_inference_input(
+                ball_x, ball_y,
+                teammates, opponents,
+                team_keepers, opponent_keepers
+            )
+            
+            if sample is not None:
+                samples.append(sample)
+                valid_indices.append(i)
+        
+        if not samples:
+            return [None] * len(data_list)
+        
+        # Create dataset and dataloader for batched processing
+        dataset = xTDataset(samples, self.max_teammates, self.max_opponents)
+        from torch.utils.data import DataLoader
+        dataloader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=0)
+        
+        # Run batched inference
+        all_probs = []
+        nan_mask = []  # Track which predictions are NaN
+        with torch.no_grad():
+            for batch in dataloader:
+                ball_feat = batch['ball_features'].to(self.device)
+                tm_feat = batch['teammate_features'].to(self.device)
+                tm_mask = batch['teammate_mask'].to(self.device)
+                opp_feat = batch['opponent_features'].to(self.device)
+                opp_mask = batch['opponent_mask'].to(self.device)
+                global_feat = batch['global_features'].to(self.device)
+                
+                logits = self.model(ball_feat, tm_feat, tm_mask, opp_feat, opp_mask, global_feat)
+                probs = torch.sigmoid(logits).cpu().numpy()
+                
+                for p in probs:
+                    is_nan = np.isnan(p)
+                    nan_mask.append(is_nan)
+                    all_probs.append(0.0 if is_nan else float(p))  # Placeholder for calibration
+        
+        # Apply calibration only to valid values
+        if self.calibrator is not None:
+            valid_probs = [p for p, is_nan in zip(all_probs, nan_mask) if not is_nan]
+            if valid_probs:
+                calibrated = self.calibrator.predict(valid_probs).tolist()
+                # Put calibrated values back
+                cal_idx = 0
+                for i in range(len(all_probs)):
+                    if not nan_mask[i]:
+                        all_probs[i] = calibrated[cal_idx]
+                        cal_idx += 1
+        
+        # Map back to original indices, None for NaN
+        results = [None] * len(data_list)
+        for i, idx in enumerate(valid_indices):
+            if nan_mask[i]:
+                results[idx] = None
+            else:
+                results[idx] = float(all_probs[i])
+        
+        return results
     
     def generate_heatmap(self, grid_size: tuple = (24, 16), **kwargs) -> dict:
         """
