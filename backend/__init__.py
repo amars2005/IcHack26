@@ -258,8 +258,15 @@ def start_app():
 
             actions = {}
             # SHOOT MODEL
-            xG = None
-            actions["shoot"] = {"xG": xG}
+            from backend.generalpv.xg import ExpectedGoalModel
+            xg_model = ExpectedGoalModel(skip_training=True)
+
+            model_path = os.path.join(os.path.dirname(os.path.dirname(
+                __file__)), "models/xg_model_360.pkl")
+            xg_model.load_model(model_path)
+
+            xg_value = xg_model.calculate_expected_goal(**data_dict)
+            actions["shoot"] = {"xG": xg_value}
 
             # CARRY MODEL
             forecasted_xT = None
