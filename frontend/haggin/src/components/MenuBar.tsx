@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import type { Player, XTResult } from '../types';
+import type { Player } from '../types';
 import type { Preset } from '../presets';
-import type { GenerationStatus } from '../types';
+import type { GenerationStatus, XTResult } from '../types';
 import { COLORS } from '../constants';
 import { FORMATION_PRESETS, SITUATION_PRESETS } from '../presets';
 
@@ -17,6 +17,10 @@ type MenuBarProps = {
   onCalculateXT: () => Promise<void>;
   xTResult: XTResult | null;
   xTLoading: boolean;
+  aiRefusalMessage?: string | null;
+  teamName?: string;
+  teamColor?: string;
+  opponentColor?: string;
 };
 
 export function MenuBar({
@@ -31,6 +35,10 @@ export function MenuBar({
   onCalculateXT,
   xTResult,
   xTLoading,
+  aiRefusalMessage,
+  teamName,
+  teamColor,
+  opponentColor,
 }: MenuBarProps) {
   const [customSituation, setCustomSituation] = useState('');
   const attackers = players.filter((p) => p.type === 'attacker');
@@ -117,14 +125,44 @@ export function MenuBar({
           <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Team Colors</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: COLORS.attacker }} />
-              <span>Attacking Team</span>
+              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: teamColor || COLORS.attacker }} />
+              <span>{teamName || 'Attacking Team'}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: COLORS.defender }} />
-              <span>Defending Team</span>
+              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: opponentColor || COLORS.defender }} />
+              <span>{opponentColor ? 'Opposition' : 'Defending Team'}</span>
             </div>
           </div>
+        </div>
+
+        {/* xT calculation */}
+        <div style={{ marginBottom: '24px' }}>
+          <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Expected Threat (xT)</h3>
+          <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: 0 }}>Calculate xT for the player currently in possession.</p>
+          <button
+            onClick={async () => { try { await onCalculateXT(); } catch (e) { console.error(e); } }}
+            disabled={xTLoading}
+            style={{
+              marginTop: '8px',
+              padding: '10px',
+              background: xTLoading ? '#6b7280' : '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: xTLoading ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              width: '100%'
+            }}
+          >
+            {xTLoading ? 'Calculating…' : 'Calculate xT for ball carrier'}
+          </button>
+
+          {xTResult && (
+            <div style={{ marginTop: 10, padding: 8, background: '#0b1224', borderRadius: 6, fontSize: 13 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>xT result</div>
+              <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 12 }}>{JSON.stringify(xTResult, null, 2)}</pre>
+            </div>
+          )}
         </div>
 
         {/* Custom Situation Generator */}
@@ -183,7 +221,7 @@ export function MenuBar({
             </div>
           )}
 
-          {generationStatus === 'error' && (
+          {generationStatus === 'error' && !aiRefusalMessage && (
             <div style={{
               marginTop: '8px',
               padding: '8px',
@@ -196,6 +234,26 @@ export function MenuBar({
             }}>
               <span style={{ fontSize: '16px' }}>✗</span>
               <span>Generation failed. Check backend connection.</span>
+            </div>
+          )}
+
+          {/* AI refusal (inappropriate prompt) message */}
+          {aiRefusalMessage && (
+            <div style={{
+              marginTop: '8px',
+              padding: '8px',
+              background: '#92400e',
+              borderRadius: '4px',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span style={{ fontSize: '16px' }}>⚠</span>
+              <div>
+                <div style={{ fontWeight: '600' }}>AI refused to answer</div>
+                <div style={{ fontSize: '12px', color: '#fde68a' }}>{aiRefusalMessage}</div>
+              </div>
             </div>
           )}
         </div>
@@ -248,57 +306,6 @@ export function MenuBar({
           </div>
         </div>
 
-
-        {/* Calculate xT Section */}
-        <div style={{ marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Expected Threat (xT)</h3>
-          <button
-            onClick={onCalculateXT}
-            disabled={xTLoading}
-            style={{
-              padding: '12px',
-              background: xTLoading ? '#6b7280' : '#f59e0b',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: xTLoading ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              width: '100%',
-              opacity: xTLoading ? 0.6 : 1,
-            }}
-          >
-            {xTLoading ? 'Calculating...' : 'Calculate xT'}
-          </button>
-
-          {xTResult && (
-            <div style={{
-              marginTop: '12px',
-              padding: '12px',
-              background: xTResult.error ? '#7f1d1d' : '#065f46',
-              borderRadius: '4px',
-              fontSize: '13px',
-            }}>
-              {xTResult.error ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '16px' }}>✗</span>
-                  <span>{xTResult.error}</span>
-                </div>
-              ) : (
-                <div>
-                  <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>xT Value:</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
-                    {typeof xTResult === 'number' 
-                      ? xTResult.toFixed(4)
-                      : typeof xTResult.xT === 'number'
-                        ? xTResult.xT.toFixed(4)
-                        : JSON.stringify(xTResult, null, 2)}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
 
         {/* Instructions */}
         <div style={{ fontSize: '12px', color: '#9ca3af', lineHeight: '1.6' }}>
