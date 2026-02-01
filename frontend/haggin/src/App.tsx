@@ -313,105 +313,259 @@ function App() {
             </div>
           </div>
 
-          {/* BOX 2: TACTICAL MENU (inlined) */}
-          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
-            <h2 style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em' }}>Controls</h2>
+          {/* BOX 2: DECISION ENGINE */}
+          <div style={{ background: 'linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)', padding: '20px', borderRadius: '12px', border: '1px solid #312e81', flexShrink: 0 }}>
+            <h2 style={{ fontSize: '16px', color: '#e2e8f0', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '20px' }}>🧠</span>
+              Decision Engine
+            </h2>
+            <p style={{ fontSize: '11px', color: '#6b7280', marginTop: 0, marginBottom: '16px' }}>
+              AI-powered analysis of optimal actions
+            </p>
 
-            {/* (Ball possession and Team Colors removed) */}
+            {/* Main Analysis Button */}
+            <button
+              onClick={handleCalculateXT}
+              disabled={xTLoading}
+              style={{
+                padding: '14px 16px',
+                background: xTLoading 
+                  ? 'linear-gradient(135deg, #4b5563 0%, #374151 100%)' 
+                  : 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: xTLoading ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                fontWeight: 600,
+                width: '100%',
+                opacity: xTLoading ? 0.7 : 1,
+                boxShadow: xTLoading ? 'none' : '0 4px 14px rgba(139, 92, 246, 0.4)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {xTLoading ? '⏳ Computing...' : '⚡ Compute Best Action'}
+            </button>
 
-            {/* xT calculation */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', marginBottom: '6px', color: '#9ca3af' }}>Expected Threat (xT)</label>
-              <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: 0 }}>Calculate xT for the player currently in possession.</p>
-              <button
-                onClick={handleCalculateXT}
-                disabled={xTLoading}
-                style={{ marginTop: '8px', padding: '10px', background: xTLoading ? '#374151' : '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: xTLoading ? 'not-allowed' : 'pointer', fontSize: '13px', width: '100%' }}
-              >
-                {xTLoading ? 'Calculating…' : 'Calculate xT for ball carrier'}
-              </button>
+            {/* Results Display */}
+            {xTResult && !xTResult.error && (
+              <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                
+                {/* Current xT */}
+                {xTResult.current_xT !== undefined && xTResult.current_xT !== null && (
+                  <div style={{
+                    padding: '10px 14px',
+                    background: 'rgba(99, 102, 241, 0.1)',
+                    borderBottom: '1px solid rgba(99, 102, 241, 0.2)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span style={{ fontSize: '11px', color: '#a5b4fc' }}>Current Position Value</span>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#818cf8' }}>
+                      {((xTResult.current_xT as number) * 100).toFixed(2)}%
+                    </span>
+                  </div>
+                )}
 
-              {xTResult && (
-                <div style={{ marginTop: 10, padding: 8, background: '#071025', borderRadius: 6, fontSize: 12 }}>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>xT result</div>
-                  <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 11 }}>{JSON.stringify(xTResult, null, 2)}</pre>
-                </div>
-              )}
-            </div>
+                {/* Shoot */}
+                {xTResult.shoot && (
+                  <div style={{ 
+                    padding: '12px 14px', 
+                    borderBottom: '1px solid rgba(99, 102, 241, 0.2)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '20px' }}>⚽</span>
+                      <div>
+                        <div style={{ fontWeight: 600, color: '#fbbf24', fontSize: '13px' }}>Shoot</div>
+                        <div style={{ fontSize: '9px', color: '#6b7280' }}>Expected Goal</div>
+                      </div>
+                    </div>
+                    <div style={{ 
+                      fontSize: '18px', 
+                      fontWeight: 700, 
+                      color: xTResult.shoot.xG > 0.15 ? '#22c55e' : xTResult.shoot.xG > 0.05 ? '#fbbf24' : '#ef4444'
+                    }}>
+                      {(xTResult.shoot.xG * 100).toFixed(1)}%
+                    </div>
+                  </div>
+                )}
 
-            {/* Test Endpoint */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', marginBottom: '6px', color: '#9ca3af' }}>Test Endpoint</label>
-              <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: 0 }}>Call the /test endpoint with current positions.</p>
+                {/* Pass Options */}
+                {(() => {
+                  const passActions = Object.entries(xTResult)
+                    .filter(([key]) => key.startsWith('pass_to_'))
+                    .map(([key, value]: [string, any]) => ({
+                      playerId: key.replace('pass_to_', ''),
+                      probability: value['P(success)'],
+                      reward: value.reward,
+                      risk: value.risk,
+                      score: value.score,
+                    }))
+                    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+
+                  if (passActions.length === 0) return null;
+
+                  const bestPass = passActions[0];
+                  const topPasses = passActions.slice(0, 5);
+
+                  return (
+                    <div style={{ padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '20px' }}>📤</span>
+                        <div>
+                          <div style={{ fontWeight: 600, color: '#c084fc', fontSize: '13px' }}>Pass Options</div>
+                          <div style={{ fontSize: '9px', color: '#6b7280' }}>Ranked by expected value</div>
+                        </div>
+                      </div>
+
+                      {/* Best Pass */}
+                      {bestPass && (
+                        <div style={{
+                          background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)',
+                          borderRadius: '6px',
+                          padding: '10px',
+                          marginBottom: '8px',
+                          border: '1px solid rgba(34, 197, 94, 0.3)'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '10px', background: '#22c55e', color: '#000', padding: '2px 5px', borderRadius: '3px', fontWeight: 700 }}>BEST</span>
+                              <span style={{ fontWeight: 600, fontSize: '13px' }}>#{bestPass.playerId}</span>
+                            </div>
+                            <div style={{ 
+                              fontSize: '16px', 
+                              fontWeight: 700, 
+                              color: bestPass.score > 0 ? '#22c55e' : '#ef4444'
+                            }}>
+                              {bestPass.score > 0 ? '+' : ''}{(bestPass.score * 100).toFixed(2)}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '12px', fontSize: '10px' }}>
+                            <div>
+                              <span style={{ color: '#6b7280' }}>Prob: </span>
+                              <span style={{ color: '#22c55e', fontWeight: 600 }}>{(bestPass.probability * 100).toFixed(0)}%</span>
+                            </div>
+                            <div>
+                              <span style={{ color: '#6b7280' }}>Gain: </span>
+                              <span style={{ color: bestPass.reward > 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
+                                {bestPass.reward > 0 ? '+' : ''}{(bestPass.reward * 100).toFixed(1)}
+                              </span>
+                            </div>
+                            <div>
+                              <span style={{ color: '#6b7280' }}>Risk: </span>
+                              <span style={{ color: '#f87171', fontWeight: 600 }}>{(bestPass.risk * 100).toFixed(1)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Other top passes */}
+                      {topPasses.slice(1).length > 0 && (
+                        <div style={{ fontSize: '10px' }}>
+                          {topPasses.slice(1).map(({ playerId, probability, score }) => (
+                            <div key={playerId} style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              padding: '6px 8px',
+                              background: 'rgba(0,0,0,0.2)',
+                              borderRadius: '4px',
+                              marginBottom: '4px'
+                            }}>
+                              <span>#{playerId}</span>
+                              <span style={{ color: '#6b7280' }}>{(probability * 100).toFixed(0)}% prob</span>
+                              <span style={{ 
+                                fontWeight: 600,
+                                color: score > 0 ? '#22c55e' : score < -0.01 ? '#ef4444' : '#fbbf24'
+                              }}>
+                                {score > 0 ? '+' : ''}{(score * 100).toFixed(2)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {xTResult?.error && (
+              <div style={{ marginTop: '12px', padding: '10px', background: '#7f1d1d', borderRadius: '6px', fontSize: '12px' }}>
+                <span>❌ {xTResult.error}</span>
+              </div>
+            )}
+          </div>
+
+          {/* BOX 3: TEST ENDPOINT (collapsed) */}
+          <details style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <summary style={{ fontSize: '11px', color: '#6b7280', cursor: 'pointer' }}>🔧 Debug: Test Endpoint</summary>
+            <div style={{ marginTop: '12px' }}>
               <button
                 onClick={handleTestEndpoint}
                 disabled={testLoading}
-                style={{ marginTop: '8px', padding: '10px', background: testLoading ? '#374151' : '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: testLoading ? 'not-allowed' : 'pointer', fontSize: '13px', width: '100%' }}
+                style={{ padding: '8px', background: testLoading ? '#374151' : '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: testLoading ? 'not-allowed' : 'pointer', fontSize: '12px', width: '100%' }}
               >
-                {testLoading ? 'Testing…' : 'Call /test Endpoint'}
+                {testLoading ? 'Testing…' : 'Call /test'}
               </button>
-
               {testResult && (
-                <div style={{ marginTop: 10, padding: 8, background: '#071025', borderRadius: 6, fontSize: 12 }}>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Test result</div>
-                  <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 11 }}>{JSON.stringify(testResult, null, 2)}</pre>
-                </div>
+                <pre style={{ marginTop: '8px', padding: '8px', background: '#071025', borderRadius: '6px', fontSize: '10px', whiteSpace: 'pre-wrap', overflow: 'auto', maxHeight: '150px' }}>
+                  {JSON.stringify(testResult, null, 2)}
+                </pre>
               )}
             </div>
+          </details>
 
-            {/* Custom Situation Generator */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', marginBottom: '6px', color: '#9ca3af' }}>Custom Situation</label>
-              <textarea
-                value={customSituation}
-                onChange={(e) => setCustomSituation(e.target.value)}
-                placeholder="Describe an attacking situation (e.g., 'Quick throw-in near the penalty box with numbers up')"
-                style={{ width: '100%', padding: '8px', background: '#0b1224', color: 'white', border: '1px solid #273449', borderRadius: '6px', fontSize: '13px', minHeight: '72px', resize: 'vertical', fontFamily: 'inherit' }}
-              />
-              <button
-                onClick={async () => { if (!customSituation.trim()) return; await handleGenerateCustom(customSituation); }}
-                disabled={!customSituation.trim() || generationStatus === 'loading'}
-                style={{ marginTop: '8px', padding: '10px', background: generationStatus === 'loading' ? '#374151' : '#7c3aed', color: 'white', border: 'none', borderRadius: '6px', cursor: customSituation.trim() && generationStatus !== 'loading' ? 'pointer' : 'not-allowed', fontSize: '13px', width: '100%', opacity: customSituation.trim() && generationStatus !== 'loading' ? 1 : 0.7 }}
-              >
-                {generationStatus === 'loading' ? 'Generating...' : 'Generate with AI'}
-              </button>
+          {/* BOX 4: AI SITUATION GENERATOR */}
+          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <h2 style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>✨</span> AI Scenario Generator
+            </h2>
+            <textarea
+              value={customSituation}
+              onChange={(e) => setCustomSituation(e.target.value)}
+              placeholder="Describe an attacking situation (e.g., 'Quick throw-in near the penalty box with numbers up')"
+              style={{ width: '100%', padding: '8px', background: '#0b1224', color: 'white', border: '1px solid #273449', borderRadius: '6px', fontSize: '12px', minHeight: '60px', resize: 'vertical', fontFamily: 'inherit' }}
+            />
+            <button
+              onClick={async () => { if (!customSituation.trim()) return; await handleGenerateCustom(customSituation); }}
+              disabled={!customSituation.trim() || generationStatus === 'loading'}
+              style={{ marginTop: '8px', padding: '10px', background: generationStatus === 'loading' ? '#374151' : '#7c3aed', color: 'white', border: 'none', borderRadius: '6px', cursor: customSituation.trim() && generationStatus !== 'loading' ? 'pointer' : 'not-allowed', fontSize: '12px', width: '100%', opacity: customSituation.trim() && generationStatus !== 'loading' ? 1 : 0.7 }}
+            >
+              {generationStatus === 'loading' ? '⏳ Generating...' : '🎨 Generate with AI'}
+            </button>
 
-              {generationStatus === 'success' && (
-                <div style={{ marginTop: '8px', padding: '8px', background: '#065f46', borderRadius: '6px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '16px' }}>✓</span>
-                  <span>Successfully generated positions!</span>
-                </div>
-              )}
-
-              {generationStatus === 'error' && !aiRefusalMessage && (
-                <div style={{ marginTop: '8px', padding: '8px', background: '#7f1d1d', borderRadius: '6px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '16px' }}>✗</span>
-                  <span>Generation failed. Check backend connection.</span>
-                </div>
-              )}
-
-              {aiRefusalMessage && (
-                <div style={{ marginTop: '8px', padding: '8px', background: '#92400e', borderRadius: '6px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '16px' }}>⚠</span>
-                  <div>
-                    <div style={{ fontWeight: '600' }}>AI refused to answer</div>
-                    <div style={{ fontSize: '12px', color: '#fde68a' }}>{aiRefusalMessage}</div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Attacking Situations (simple presets) */}
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', fontSize: '13px', marginBottom: '8px', color: '#9ca3af' }}>Attacking Situations</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {SITUATION_PRESETS.map((preset) => (
-                  <button key={preset.name} onClick={() => handleLoadPreset(preset)} style={{ padding: '8px', background: '#065f46', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>{preset.name}</button>
-                ))}
+            {generationStatus === 'success' && (
+              <div style={{ marginTop: '8px', padding: '8px', background: '#065f46', borderRadius: '6px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>✓</span> Positions generated!
               </div>
-            </div>
+            )}
+
+            {generationStatus === 'error' && !aiRefusalMessage && (
+              <div style={{ marginTop: '8px', padding: '8px', background: '#7f1d1d', borderRadius: '6px', fontSize: '12px' }}>
+                ❌ Generation failed
+              </div>
+            )}
+
+            {aiRefusalMessage && (
+              <div style={{ marginTop: '8px', padding: '8px', background: '#92400e', borderRadius: '6px', fontSize: '11px' }}>
+                ⚠ {aiRefusalMessage}
+              </div>
+            )}
           </div>
 
+          {/* BOX 5: PRESET SITUATIONS */}
+          <details style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <summary style={{ fontSize: '11px', color: '#6b7280', cursor: 'pointer' }}>⚔️ Preset Situations</summary>
+            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {SITUATION_PRESETS.map((preset) => (
+                <button key={preset.name} onClick={() => handleLoadPreset(preset)} style={{ padding: '8px', background: '#065f46', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>{preset.name}</button>
+              ))}
+            </div>
+          </details>
           
         </aside>
       )}
