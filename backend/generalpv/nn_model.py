@@ -353,9 +353,9 @@ class ExpectedThreatNN(nn.Module):
         global_dim: int = 20,  # Expanded from 10
         embed_dim: int = 128,  # Increased from 64
         num_attention_heads: int = 8,  # Increased from 4
-        num_attention_layers: int = 3,  # Increased from 2
+        num_attention_layers: int = 4,  # v4 config
         fusion_hidden_dim: int = 512,  # Increased from 256
-        dropout: float = 0.2,  # Reduced for larger model
+        dropout: float = 0.1,  # v4 config
     ):
         super().__init__()
         
@@ -998,14 +998,14 @@ def train_model(
         pin_memory=True if device.type == 'cuda' else False
     )
     
-    # Create model (enhanced architecture v5)
+    # Create model (version 4 architecture - matches saved model)
     model_config = {
         'ball_dim': 8,
         'player_dim': 10,
         'global_dim': 20,  # Expanded features
         'embed_dim': 128,  # Keep capacity
         'num_attention_heads': 8,
-        'num_attention_layers': 3,  # Back to 3
+        'num_attention_layers': 4,  # v4 uses 4 layers
         'fusion_hidden_dim': 512,
         'dropout': 0.1,  # Low dropout
     }

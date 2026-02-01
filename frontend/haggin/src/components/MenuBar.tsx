@@ -155,148 +155,308 @@ export function MenuBar({
 
         {/* Calculate Actions Section */}
         <div style={{ marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Action Analysis</h3>
-          <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: 0, marginBottom: '12px' }}>
-            Analyze possible actions for the ball carrier.
+          <h3 style={{ fontSize: '16px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '20px' }}>🧠</span>
+            Decision Engine
+          </h3>
+          <p style={{ fontSize: '12px', color: '#6b7280', marginTop: 0, marginBottom: '12px' }}>
+            AI-powered analysis of optimal actions
           </p>
           <button
             onClick={async () => { try { await onCalculateXT(); } catch (e) { console.error(e); } }}
             disabled={xTLoading}
             style={{
-              padding: '12px',
-              background: xTLoading ? '#6b7280' : '#f59e0b',
+              padding: '14px 16px',
+              background: xTLoading 
+                ? 'linear-gradient(135deg, #4b5563 0%, #374151 100%)' 
+                : 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
               color: 'white',
               border: 'none',
-              borderRadius: '4px',
+              borderRadius: '8px',
               cursor: xTLoading ? 'not-allowed' : 'pointer',
               fontSize: '14px',
-              fontWeight: 'bold',
+              fontWeight: 600,
               width: '100%',
-              opacity: xTLoading ? 0.6 : 1,
+              opacity: xTLoading ? 0.7 : 1,
+              boxShadow: xTLoading ? 'none' : '0 4px 14px rgba(139, 92, 246, 0.4)',
+              transition: 'all 0.2s ease',
             }}
           >
-            {xTLoading ? 'Analyzing…' : '⚡ Analyze Actions'}
+            {xTLoading ? '⏳ Computing...' : '⚡ Compute Best Action'}
           </button>
 
           {xTResult && !xTResult.error && (
-            <div style={{ marginTop: '12px', background: '#0b1224', borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ marginTop: '16px', background: 'linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)', borderRadius: '12px', overflow: 'hidden', border: '1px solid #312e81' }}>
+              
+              {/* Current State Header */}
+              {xTResult.current_xT !== undefined && xTResult.current_xT !== null && (
+                <div style={{
+                  padding: '12px 16px',
+                  background: 'rgba(99, 102, 241, 0.1)',
+                  borderBottom: '1px solid #312e81',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: '12px', color: '#a5b4fc' }}>Current Position Value</span>
+                  <span style={{ fontSize: '16px', fontWeight: 700, color: '#818cf8' }}>
+                    {((xTResult.current_xT as number) * 100).toFixed(2)}%
+                  </span>
+                </div>
+              )}
+
               {/* Shoot action */}
               {xTResult.shoot && (
                 <div style={{ 
-                  padding: '12px', 
-                  borderBottom: '1px solid #1e293b',
+                  padding: '14px 16px', 
+                  borderBottom: '1px solid #312e81',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  background: xTResult.shoot.xG > 0.1 ? 'rgba(34, 197, 94, 0.1)' : 'transparent'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '18px' }}>⚽</span>
-                    <span style={{ fontWeight: 600, color: '#f59e0b' }}>Shoot</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ 
+                      width: '36px', 
+                      height: '36px', 
+                      borderRadius: '8px', 
+                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '18px'
+                    }}>⚽</div>
+                    <div>
+                      <div style={{ fontWeight: 600, color: '#fbbf24', fontSize: '14px' }}>Shoot</div>
+                      <div style={{ fontSize: '10px', color: '#6b7280' }}>Expected Goal</div>
+                    </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#22c55e' }}>
+                    <div style={{ 
+                      fontSize: '20px', 
+                      fontWeight: 700, 
+                      color: xTResult.shoot.xG > 0.15 ? '#22c55e' : xTResult.shoot.xG > 0.05 ? '#fbbf24' : '#ef4444'
+                    }}>
                       {(xTResult.shoot.xG * 100).toFixed(1)}%
                     </div>
-                    <div style={{ fontSize: '10px', color: '#9ca3af' }}>xG</div>
                   </div>
                 </div>
               )}
 
-              {/* Carry action */}
+              {/* Carry action - only show if implemented */}
               {xTResult.carry && xTResult.carry.xT !== null && (
                 <div style={{ 
-                  padding: '12px', 
-                  borderBottom: '1px solid #1e293b',
+                  padding: '14px 16px', 
+                  borderBottom: '1px solid #312e81',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '18px' }}>🏃</span>
-                    <span style={{ fontWeight: 600, color: '#3b82f6' }}>Carry</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ 
+                      width: '36px', 
+                      height: '36px', 
+                      borderRadius: '8px', 
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '18px'
+                    }}>🏃</div>
+                    <div>
+                      <div style={{ fontWeight: 600, color: '#60a5fa', fontSize: '14px' }}>Carry</div>
+                      <div style={{ fontSize: '10px', color: '#6b7280' }}>Dribble Forward</div>
+                    </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#22c55e' }}>
-                      {typeof xTResult.carry.xT === 'number' ? xTResult.carry.xT.toFixed(3) : '—'}
+                    <div style={{ fontSize: '20px', fontWeight: 700, color: '#60a5fa' }}>
+                      {typeof xTResult.carry.xT === 'number' ? (xTResult.carry.xT * 100).toFixed(1) + '%' : '—'}
                     </div>
-                    <div style={{ fontSize: '10px', color: '#9ca3af' }}>xT</div>
                   </div>
                 </div>
               )}
 
-              {/* Pass actions - sorted by success probability */}
+              {/* Pass actions - sorted by score */}
               {(() => {
                 const passActions = Object.entries(xTResult)
                   .filter(([key]) => key.startsWith('pass_to_'))
                   .map(([key, value]: [string, any]) => ({
                     playerId: key.replace('pass_to_', ''),
                     xT: value.xT,
-                    probability: value['P(success)']
+                    probability: value['P(success)'],
+                    reward: value.reward,
+                    risk: value.risk,
+                    score: value.score,
+                    opponentXT: value.opponent_xT
                   }))
-                  .sort((a, b) => (b.probability ?? 0) - (a.probability ?? 0));
+                  .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
                 if (passActions.length === 0) return null;
 
+                const bestPass = passActions[0];
+                const otherPasses = passActions.slice(1);
+
                 return (
-                  <div style={{ padding: '12px' }}>
+                  <div style={{ padding: '14px 16px' }}>
                     <div style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
-                      gap: '8px', 
-                      marginBottom: '10px',
-                      paddingBottom: '8px',
-                      borderBottom: '1px solid #374151'
+                      gap: '10px', 
+                      marginBottom: '12px',
                     }}>
-                      <span style={{ fontSize: '18px' }}>📤</span>
-                      <span style={{ fontWeight: 600, color: '#a855f7' }}>Pass Options</span>
+                      <div style={{ 
+                        width: '36px', 
+                        height: '36px', 
+                        borderRadius: '8px', 
+                        background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '18px'
+                      }}>📤</div>
+                      <div>
+                        <div style={{ fontWeight: 600, color: '#c084fc', fontSize: '14px' }}>Pass Options</div>
+                        <div style={{ fontSize: '10px', color: '#6b7280' }}>Ranked by expected value</div>
+                      </div>
                     </div>
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'auto 1fr auto', 
-                      gap: '6px 12px',
-                      fontSize: '13px'
-                    }}>
-                      <div style={{ color: '#9ca3af', fontSize: '11px', fontWeight: 600 }}>TO</div>
-                      <div style={{ color: '#9ca3af', fontSize: '11px', fontWeight: 600 }}>SUCCESS</div>
-                      <div style={{ color: '#9ca3af', fontSize: '11px', fontWeight: 600, textAlign: 'right' }}>xT</div>
-                      {passActions.map(({ playerId, xT, probability }) => (
-                        <>
-                          <div key={`player-${playerId}`} style={{ fontWeight: 500 }}>#{playerId}</div>
-                          <div key={`prob-${playerId}`}>
-                            <div style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: '6px' 
-                            }}>
+
+                    {/* Best Pass Highlighted */}
+                    {bestPass && (
+                      <div style={{
+                        background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        marginBottom: '10px',
+                        border: '1px solid rgba(34, 197, 94, 0.3)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '12px', background: '#22c55e', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>BEST</span>
+                            <span style={{ fontWeight: 600, fontSize: '15px' }}>Pass to #{bestPass.playerId}</span>
+                          </div>
+                          <div style={{ 
+                            fontSize: '18px', 
+                            fontWeight: 700, 
+                            color: bestPass.score > 0 ? '#22c55e' : '#ef4444'
+                          }}>
+                            {bestPass.score > 0 ? '+' : ''}{(bestPass.score * 100).toFixed(2)}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '16px', fontSize: '11px' }}>
+                          <div>
+                            <span style={{ color: '#6b7280' }}>Success: </span>
+                            <span style={{ color: '#22c55e', fontWeight: 600 }}>{(bestPass.probability * 100).toFixed(0)}%</span>
+                          </div>
+                          <div>
+                            <span style={{ color: '#6b7280' }}>Gain: </span>
+                            <span style={{ color: bestPass.reward > 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
+                              {bestPass.reward > 0 ? '+' : ''}{(bestPass.reward * 100).toFixed(2)}
+                            </span>
+                          </div>
+                          <div>
+                            <span style={{ color: '#6b7280' }}>Risk: </span>
+                            <span style={{ color: '#f87171', fontWeight: 600 }}>{(bestPass.risk * 100).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Other Passes Table */}
+                    {otherPasses.length > 0 && (
+                      <div style={{ fontSize: '11px' }}>
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: '50px 1fr 55px 55px 60px', 
+                          gap: '4px 6px',
+                          padding: '6px 8px',
+                          background: 'rgba(0,0,0,0.2)',
+                          borderRadius: '6px 6px 0 0',
+                          fontWeight: 600,
+                          color: '#6b7280',
+                          fontSize: '9px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          <div>Target</div>
+                          <div>Success</div>
+                          <div style={{ textAlign: 'right' }}>Gain</div>
+                          <div style={{ textAlign: 'right' }}>Risk</div>
+                          <div style={{ textAlign: 'right' }}>Score</div>
+                        </div>
+                        {otherPasses.map(({ playerId, probability, reward, risk, score }, idx) => (
+                          <div 
+                            key={playerId}
+                            style={{ 
+                              display: 'grid', 
+                              gridTemplateColumns: '50px 1fr 55px 55px 60px', 
+                              gap: '4px 6px',
+                              padding: '8px',
+                              background: idx % 2 === 0 ? 'rgba(0,0,0,0.1)' : 'transparent',
+                              borderRadius: idx === otherPasses.length - 1 ? '0 0 6px 6px' : '0',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <div style={{ fontWeight: 500 }}>#{playerId}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <div style={{ 
                                 flex: 1, 
-                                height: '6px', 
+                                height: '4px', 
                                 background: '#374151', 
-                                borderRadius: '3px',
+                                borderRadius: '2px',
                                 overflow: 'hidden'
                               }}>
                                 <div style={{ 
                                   width: `${(probability ?? 0) * 100}%`, 
                                   height: '100%', 
-                                  background: probability >= 0.7 ? '#22c55e' : probability >= 0.4 ? '#f59e0b' : '#ef4444',
-                                  borderRadius: '3px'
+                                  background: probability >= 0.8 ? '#22c55e' : probability >= 0.5 ? '#f59e0b' : '#ef4444',
+                                  borderRadius: '2px'
                                 }} />
                               </div>
                               <span style={{ 
-                                fontSize: '11px', 
-                                color: probability >= 0.7 ? '#22c55e' : probability >= 0.4 ? '#f59e0b' : '#ef4444',
-                                minWidth: '36px',
-                                textAlign: 'right'
+                                fontSize: '10px', 
+                                color: probability >= 0.8 ? '#22c55e' : probability >= 0.5 ? '#f59e0b' : '#ef4444',
+                                minWidth: '30px',
+                                textAlign: 'right',
+                                fontWeight: 500
                               }}>
-                                {probability !== null ? `${(probability * 100).toFixed(0)}%` : '—'}
+                                {(probability * 100).toFixed(0)}%
                               </span>
                             </div>
+                            <div style={{ 
+                              textAlign: 'right', 
+                              color: reward > 0 ? '#4ade80' : reward < 0 ? '#f87171' : '#6b7280',
+                              fontWeight: 500
+                            }}>
+                              {reward > 0 ? '+' : ''}{(reward * 100).toFixed(1)}
+                            </div>
+                            <div style={{ textAlign: 'right', color: '#f87171', fontWeight: 500 }}>
+                              {(risk * 100).toFixed(1)}
+                            </div>
+                            <div style={{ 
+                              textAlign: 'right', 
+                              fontWeight: 600,
+                              color: score > 0 ? '#22c55e' : score < -0.01 ? '#ef4444' : '#fbbf24'
+                            }}>
+                              {score > 0 ? '+' : ''}{(score * 100).toFixed(2)}
+                            </div>
                           </div>
-                          <div key={`xt-${playerId}`} style={{ textAlign: 'right', color: '#9ca3af' }}>
-                            {xT !== null ? xT.toFixed(3) : '—'}
-                          </div>
-                        </>
-                      ))}
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Legend */}
+                    <div style={{ 
+                      marginTop: '12px', 
+                      padding: '10px',
+                      background: 'rgba(0,0,0,0.2)',
+                      borderRadius: '6px',
+                      fontSize: '9px',
+                      color: '#6b7280',
+                      lineHeight: 1.6
+                    }}>
+                      <div><strong style={{ color: '#9ca3af' }}>Score</strong> = Expected value of the pass action</div>
+                      <div><strong style={{ color: '#4ade80' }}>Gain</strong> = Threat increase if successful</div>
+                      <div><strong style={{ color: '#f87171' }}>Risk</strong> = Threat loss if intercepted</div>
                     </div>
                   </div>
                 );

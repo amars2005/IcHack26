@@ -203,7 +203,7 @@ Ensure coordinates reflect the tactical situation described, formation requireme
 def start_app():
     app = Flask(__name__)
     CORS(app, origins=["http://localhost:5173",
-         "http://localhost:5175"], supports_credentials=True)
+         "http://localhost:5174", "http://localhost:5175"], supports_credentials=True)
 
     @app.route("/test", methods=["POST"])
     def test():
@@ -370,14 +370,13 @@ def start_app():
             # ---------------- data processing done for required dict format: data_dict----------------#
 
             actions = {}
+            
             # SHOOT MODEL
             from backend.generalpv.xg import ExpectedGoalModel
             xg_model = ExpectedGoalModel(skip_training=True)
-
             model_path = os.path.join(os.path.dirname(os.path.dirname(
                 __file__)), "models/xg_model_360.pkl")
             xg_model.load_model(model_path)
-
             xg_value = xg_model.calculate_expected_goal(**data_dict)
             actions["shoot"] = {"xG": xg_value}
 
@@ -385,33 +384,38 @@ def start_app():
             forecasted_xT = None
             actions["carry"] = {"xT": forecasted_xT}
 
-            # PASS MODEL
-            # should pass ball position to model ie:
-            ball_pos_tuple = (ball_position['x'], ball_position['y'])
-
-            for i in range(len(attackers)):
-                player_id = attackers[i]["id"]
-
-                if player_id == ball_id:
-                    continue
-                # run model evaluations to pass to each player
-
-                # player i position (from attackers) ie
-                i_pos_tuple = (attackers[i]["x"], attackers[i]["y"])
-
-                #  process to models
-                pass_xT = None
-
-                from backend.generalpv.passProbabilityModel import PassProbabilityModel
-                model = PassProbabilityModel(skip_training=True)
-                model_path = os.path.join(os.path.dirname(os.path.dirname(
-                    __file__)), "models/pass_probability_model.pkl")
-                model.load_model(model_path)
-                pass_likelihood = model.calculate_pass_probability(
-                    start_x=ball_pos_tuple[0], start_y=ball_pos_tuple[1], end_x=i_pos_tuple[0], end_y=i_pos_tuple[1], team_id=1, **data_dict)
-
+            # PASS MODEL - Using PassScoreModel for comprehensive evaluation
+            from backend.generalpv.passScoreModel import PassScoreModel
+            pass_score_model = PassScoreModel()
+            pass_score_model.load_models()
+            
+            # Get current xT for reference
+            current_xT = pass_score_model.get_current_xT(
+                ball_position, attackers, defenders, keepers
+            )
+            actions["current_xT"] = current_xT
+            
+            # Calculate pass scores for all targets
+            pass_scores = pass_score_model.calculate_pass_scores(
+                ball_position=ball_position,
+                attackers=attackers,
+                defenders=defenders,
+                keepers=keepers,
+                ball_id=ball_id,
+                data_dict=data_dict
+            )
+            
+            # Format pass results for frontend
+            for player_id, metrics in pass_scores.items():
                 actions[f"pass_to_{player_id}"] = {
-                    "xT": pass_xT, "P(success)": pass_likelihood}
+                    "xT": metrics["target_xT"],
+                    "P(success)": metrics["success_prob"],
+                    "reward": metrics["reward"],
+                    "risk": metrics["risk"],
+                    "score": metrics["score"],
+                    "opponent_xT": metrics["opponent_xT"],
+                    "interception_point": metrics["interception_point"]
+                }
 
             print("Predicted actions:", actions)
 
