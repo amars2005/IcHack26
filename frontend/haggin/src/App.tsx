@@ -47,6 +47,10 @@ function App() {
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, position: { x: clampedX, y: clampedY } } : p)));
   };
 
+  const handleAssignBall = (id: string) => {
+    setBallCarrier(id);
+  };
+
   useEffect(() => {
     const p = players.find((pl) => pl.id === ballCarrier);
     setSelectedPlayerPosition(p ? p.position : null);
@@ -149,27 +153,29 @@ function App() {
           background: isPitchFullscreen ? '#000' : 'transparent',
         }}
       >
-        <div style={{ position: 'absolute', left: 40, top: 40, zIndex: 10 }}>
-          {editingTeamName ? (
-            <input
-              ref={teamInputRef}
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              onBlur={() => setEditingTeamName(false)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setEditingTeamName(false);
-                } else if (e.key === 'Escape') {
-                  setTeamName(prevTeamNameRef.current);
-                  setEditingTeamName(false);
-                }
-              }}
-              style={{ margin: 0, fontSize: 36, fontWeight: 900, color: teamColor, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: 6, colorScheme: 'dark' }}
-            />
-          ) : (
-            <h1 onClick={() => setEditingTeamName(true)} style={{ margin: 0, fontSize: 36, fontWeight: 900, color: teamColor, cursor: 'pointer' }}>{teamName.toUpperCase()}</h1>
-          )}
-        </div>
+        {!isPitchFullscreen && (
+          <div style={{ position: 'absolute', left: 64, top: 20, zIndex: 10 }}>
+            {editingTeamName ? (
+              <input
+                ref={teamInputRef}
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                onBlur={() => setEditingTeamName(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setEditingTeamName(false);
+                  } else if (e.key === 'Escape') {
+                    setTeamName(prevTeamNameRef.current);
+                    setEditingTeamName(false);
+                  }
+                }}
+                style={{ margin: 0, fontSize: 36, fontWeight: 900, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', padding: '6px 10px', borderRadius: 6, color: teamColor }}
+              />
+            ) : (
+              <h1 onClick={() => setEditingTeamName(true)} style={{ margin: 0, fontSize: 36, fontWeight: 900, color: teamColor, cursor: 'pointer' }}>{teamName.toUpperCase()}</h1>
+            )}
+          </div>
+        )}
 
         <div style={{ position: 'absolute', right: 20, top: 20, zIndex: 50 }}>
           <button
@@ -190,6 +196,7 @@ function App() {
           scale={isPitchFullscreen ? Math.min(viewport.w / PITCH_WIDTH, viewport.h / PITCH_HEIGHT) : scale}
           teamColor={teamColor}
           opponentColor={opponentColor}
+          onAssignBall={handleAssignBall}
         />
       </main>
 

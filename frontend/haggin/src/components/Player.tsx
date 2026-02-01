@@ -9,11 +9,12 @@ type PlayerProps = {
   scale: number;
   hasBall: boolean;
   onDragEnd: (id: string, x: number, y: number) => void;
+  onRightClick?: (id: string) => void;
   teamColor?: string;
   opponentColor?: string;
 };
 
-export function Player({ player, scale, hasBall, onDragEnd, teamColor, opponentColor }: PlayerProps) {
+export function Player({ player, scale, hasBall, onDragEnd, onRightClick, teamColor, opponentColor }: PlayerProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -73,6 +74,10 @@ export function Player({ player, scale, hasBall, onDragEnd, teamColor, opponentC
         y: displayY,
       }}
       transition={animationConfig}
+      onContextMenu={(e: React.MouseEvent) => {
+        e.preventDefault();
+        onRightClick?.(player.id);
+      }}
     >
       {/* Outline ring (black for dragging, yellow for ball, team color otherwise) */}
       <circle
