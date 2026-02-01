@@ -11,6 +11,85 @@ import joblib
 import lightgbm as lgb
 dotenv.load_dotenv()
 
+URL = 'https://api.anthropic.com/v1/messages'
+IMAGE_PROMPT = """You are an expert football/soccer tactical analyst with advanced computer vision capabilities.
+Your task is to analyze an image of a football pitch (tactical diagram, heatmap, TV broadcast frame, or 2D plot) and convert it into EXACT (x, y) COORDINATES for 22 players according to a specific coordinate system.
+
+═══════════════════════════════════════════════════════════════════
+1. VISUAL ANALYSIS & MAPPING
+═══════════════════════════════════════════════════════════════════
+- **Analyze the View:** Determine if the image is top-down (2D) or perspective (broadcast). Map the visual locations to the 2D coordinate plane described below.
+- **Identify Teams:** Distinguish the two teams based on color/shape.
+   - **Attacking Team:** The team that appears to be in possession or moving towards the "right" goal in the standardized system below.
+   - **Defending Team:** The team protecting the "right" goal.
+- **Infer Missing Players:** If the image is a zoomed-in shot (e.g. TV broadcast) and does not show all 22 players, you MUST infer the logical positions of the off-screen players to satisfy the strict requirement of 22 total players. (e.g., if you only see the attack, place the opponent's goalkeeper at x=118).
+
+═══════════════════════════════════════════════════════════════════
+2. STANDARDIZED PITCH COORDINATES
+═══════════════════════════════════════════════════════════════════
+- **Dimensions:** 120m x 80m.
+- **Orientation:**
+  - (0,0) is Bottom-Left corner.
+  - (120,80) is Top-Right corner.
+  - **Attacking direction:** Left (x=0) to Right (x=120).
+  - **Attacking Team Goal:** x=0.
+  - **Defending Team Goal:** x=120.
+
+═══════════════════════════════════════════════════════════════════
+3. CRITICAL OUTPUT RULES (STRICT SCHEMA)
+═══════════════════════════════════════════════════════════════════
+You must output a JSON object with two arrays: "attackers" and "defenders".
+
+**ATTACKERS ARRAY (11 Objects):**
+- MUST contain exactly 11 players.
+- IDs MUST be: "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11".
+- ID "1" is the goalkeeper (usually near x=10-30).
+
+**DEFENDERS ARRAY (11 Objects):**
+- MUST contain exactly 11 players.
+- IDs MUST be: "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11".
+- ID "d1" is the goalkeeper (usually near x=115-120).
+- **WARNING:** Do not forget "d11". It is mandatory.
+
+**BALL ID:**
+- Identify the attacker closest to the ball and assign "ball_id" to that player's ID.
+
+═══════════════════════════════════════════════════════════════════
+OUTPUT FORMAT
+═══════════════════════════════════════════════════════════════════
+Return ONLY valid JSON. No markdown, no code blocks, no explanation.
+
+{
+  "attackers": [
+    {"x": <number>, "y": <number>, "id": "1"},
+    {"x": <number>, "y": <number>, "id": "2"},
+    {"x": <number>, "y": <number>, "id": "3"},
+    {"x": <number>, "y": <number>, "id": "4"},
+    {"x": <number>, "y": <number>, "id": "5"},
+    {"x": <number>, "y": <number>, "id": "6"},
+    {"x": <number>, "y": <number>, "id": "7"},
+    {"x": <number>, "y": <number>, "id": "8"},
+    {"x": <number>, "y": <number>, "id": "9"},
+    {"x": <number>, "y": <number>, "id": "10"},
+    {"x": <number>, "y": <number>, "id": "11"}
+  ],
+  "defenders": [
+    {"x": <number>, "y": <number>, "id": "d1"},
+    {"x": <number>, "y": <number>, "id": "d2"},
+    {"x": <number>, "y": <number>, "id": "d3"},
+    {"x": <number>, "y": <number>, "id": "d4"},
+    {"x": <number>, "y": <number>, "id": "d5"},
+    {"x": <number>, "y": <number>, "id": "d6"},
+    {"x": <number>, "y": <number>, "id": "d7"},
+    {"x": <number>, "y": <number>, "id": "d8"},
+    {"x": <number>, "y": <number>, "id": "d9"},
+    {"x": <number>, "y": <number>, "id": "d10"},
+    {"x": <number>, "y": <number>, "id": "d11"}
+  ],
+  "ball_id": "<attacker_id>"
+}
+
+"""
 SYSTEM_PROMPT = """You are an expert football/soccer tactical analyst. Your task is to position EXACTLY 22 players (11 attacking, 11 defending) on a football pitch based on the described situation.
 
 ═══════════════════════════════════════════════════════════════════
@@ -199,6 +278,56 @@ Ensure coordinates reflect the tactical situation described, formation requireme
 """
 
 
+def validate_and_parse_tactical_json(raw_content):
+    """
+    Cleans, parses, and validates the JSON response from Claude.
+    Returns: (valid_data, error_message, status_code)
+    """
+    try:
+        # 1. Remove markdown code blocks if present
+        clean_content = raw_content.replace(
+            '```json', '').replace('```', '').strip()
+        clean_json = json.loads(clean_content)
+
+        # 2. Define Strict Requirements
+        required_attacker_ids = [str(i) for i in range(1, 12)]  # "1" to "11"
+        required_defender_ids = [
+            f"d{i}" for i in range(1, 12)]  # "d1" to "d11"
+
+        attackers = clean_json.get("attackers", [])
+        defenders = clean_json.get("defenders", [])
+
+        # 3. Check Counts
+        if len(attackers) != 11:
+            return None, f"Invalid attacker count: {len(attackers)}. Expected 11.", 400
+        if len(defenders) != 11:
+            return None, f"Invalid defender count: {len(defenders)}. Expected 11.", 400
+
+        # 4. Check IDs
+        current_attacker_ids = {p.get("id") for p in attackers}
+        current_defender_ids = {p.get("id") for p in defenders}
+
+        missing_attackers = set(required_attacker_ids) - current_attacker_ids
+        missing_defenders = set(required_defender_ids) - current_defender_ids
+
+        if missing_attackers or missing_defenders:
+            error_msg = f"Missing IDs - Attackers: {list(missing_attackers)}, Defenders: {list(missing_defenders)}"
+            return None, error_msg, 400
+
+        # 5. Check Ball ID
+        ball_id = clean_json.get("ball_id")
+        if not ball_id or ball_id not in current_attacker_ids:
+            return None, f"Invalid ball_id: '{ball_id}'. Must match an existing attacker ID.", 400
+
+        # Success
+        return clean_json, None, 200
+
+    except json.JSONDecodeError as e:
+        return None, f"JSON parse error: {str(e)}", 500
+    except Exception as e:
+        return None, f"Unexpected validation error: {str(e)}", 500
+
+
 def start_app():
     app = Flask(__name__)
     CORS(app, origins=["http://localhost:5173",
@@ -278,8 +407,6 @@ def start_app():
         if request.method == "GET":
             situation = request.args.get("situation", "")
 
-        url = 'https://api.anthropic.com/v1/messages'
-
         headers = {
             'Content-Type': 'application/json',
             'x-api-key': dotenv.get_key(".env", "API_KEY"),
@@ -299,52 +426,78 @@ def start_app():
             'temperature': 0.7,
         }
 
-        response = requests.post(url, headers=headers, json=payload)
-        if response.status_code == 200:
+        response = requests.post(URL, headers=headers, json=payload)
+        if response.status_code != 200:
+            return response.json(), response.status_code
+
+        anthropic_data = response.json()
+        raw_content = anthropic_data['content'][0]['text']
+
+        valid_data, error_msg, status_code = validate_and_parse_tactical_json(
+            raw_content)
+
+        if valid_data:
+            print("Generated positions (validated): Success")
+            return valid_data
+        else:
+            print("Validation error:", error_msg)
+            return {"error": error_msg, "raw_response": raw_content}, status_code
+
+    @app.route("/image", methods=['POST'])
+    def image_positions():
+        if request.method == "POST":
+            req_data = request.get_json()
+            base64_image = req_data.get("image")
+            media_type = req_data.get("media_type", "image/jpeg")
+
+            headers = {
+                'Content-Type': 'application/json',
+                'x-api-key': dotenv.get_key(".env", "API_KEY"),
+                'anthropic-version': '2023-06-01',
+            }
+
+            payload = {
+                'model': 'claude-3-5-sonnet-20241022',  # Ensure you use a vision-capable model
+                'max_tokens': 2000,
+                'system': IMAGE_PROMPT,
+                'messages': [
+                    {
+                        'role': 'user',
+                        'content': [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": media_type,
+                                    "data": base64_image
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": "Analyze this tactical image and generate the player positions JSON."
+                            }
+                        ]
+                    }
+                ],
+                'temperature': 0.5  # Lower temperature for better spatial precision
+            }
+
+            response = requests.post(URL, headers=headers, json=payload)
+
+            if response.status_code != 200:
+                return response.json(), response.status_code
+
             anthropic_data = response.json()
             raw_content = anthropic_data['content'][0]['text']
 
-            try:
-                # Remove markdown code blocks if present
-                clean_content = raw_content.replace(
-                    '```json', '').replace('```', '').strip()
-                clean_json = json.loads(clean_content)
+            valid_data, error_msg, status_code = validate_and_parse_tactical_json(
+                raw_content)
 
-                # VALIDATION: Ensure all 22 players are present
-                required_attacker_ids = [
-                    "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"]
-                required_defender_ids = [
-                    "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11"]
-
-                attackers = clean_json.get("attackers", [])
-                defenders = clean_json.get("defenders", [])
-
-                attacker_ids = [p["id"] for p in attackers]
-                defender_ids = [p["id"] for p in defenders]
-
-                # Check if all required IDs are present
-                missing_attackers = [
-                    id for id in required_attacker_ids if id not in attacker_ids]
-                missing_defenders = [
-                    id for id in required_defender_ids if id not in defender_ids]
-
-                if missing_attackers or missing_defenders:
-                    error_msg = f"Missing players - Attackers: {missing_attackers}, Defenders: {missing_defenders}"
-                    print("Validation error:", error_msg)
-                    return {"error": error_msg, "partial_data": clean_json}, 400
-
-                if len(attackers) != 11 or len(defenders) != 11:
-                    error_msg = f"Invalid player count - Attackers: {len(attackers)}, Defenders: {len(defenders)}"
-                    print("Validation error:", error_msg)
-                    return {"error": error_msg, "partial_data": clean_json}, 400
-
-                print("Generated positions (validated):", clean_json)
-                return clean_json
-
-            except json.JSONDecodeError as e:
-                print("JSON parse error:", str(e))
-                return {"error": "Failed to parse model output", "raw": raw_content}, 500
-        else:
-            return response.json(), response.status_code
+            if valid_data:
+                print("Image analysis (validated): Success")
+                return valid_data
+            else:
+                print("Image validation error:", error_msg)
+                return {"error": error_msg, "raw_response": raw_content}, status_code
 
     return app
