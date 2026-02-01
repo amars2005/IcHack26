@@ -56,83 +56,19 @@ function App() {
     setBallCarrier(id);
   };
 
-  const [shotCooldown, setShotCooldown] = useState(false);
-
-  const fetchSuggestedMoves = async (xtParam?: any, opts: { penalizeShot?: boolean } = {}) => {
-    const xt = xtParam ?? xTResult;
-    let candidates: Array<Move & { score: number | undefined }> = [];
-
-    if (xt && !xt.error) {
-      // Collect pass options
-      const passActions = Object.entries(xt || {})
-        .filter(([key]) => key.startsWith('pass_to_'))
-        .map(([key, value]: [string, any]) => ({
-          playerId: key.replace('pass_to_', ''),
-          score: value?.score ?? value?.reward ?? value?.['P(success)'] ?? 0,
-        }))
-        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-
-      for (let i = 0; i < Math.min(4, passActions.length); i++) {
-        const p = passActions[i];
-        candidates.push({ id: `m-pass-${p.playerId}`, type: 'pass', targetId: p.playerId, description: `Pass to #${p.playerId}`, score: p.score });
-      }
-
-      // Shoot candidate (use xG or a derived score)
-      const shootXG = xt.shoot?.xG ?? xt.shoot?.xg ?? xt.shoot?.probability ?? null;
-      if (shootXG != null) {
-        let shootScore = Number(shootXG) ?? 0;
-        // Revert: do not force-shot when >50% — let sorting decide.
-        // If a shot was just executed, temporarily deprioritise further shots so a subsequent pass can be chosen.
-        if (shotCooldown || opts.penalizeShot) {
-          shootScore = shootScore - 10; // large penalty to push it out of top choices
-        }
-        candidates.push({ id: 'm-shoot', type: 'shoot', description: 'Shoot on goal', score: shootScore });
-      }
+  const fetchSuggestedMoves = async () => {
+    // Placeholder: generate simple moves based on current players and ball carrier.
+    // Backend will replace this with a real API returning structured Move[].
+    const attackersList = players.filter(p => p.type === 'attacker' && p.id !== ballCarrier);
+    const sample: Move[] = [];
+    // Suggest up to 4 passes to nearest attackers + 1 shoot/dribble option
+    for (let i = 0; i < Math.min(4, attackersList.length); i++) {
+      const p = attackersList[i];
+      sample.push({ id: `m-pass-${p.id}`, type: 'pass', targetId: p.id, description: `Pass to #${p.id}`, score: 0.5 - i * 0.05 });
     }
-
-    // If no candidates from xt, fallback to basic heuristics
-    if (candidates.length === 0) {
-      const attackersList = players.filter(p => p.type === 'attacker' && p.id !== ballCarrier);
-      for (let i = 0; i < Math.min(4, attackersList.length); i++) {
-        const p = attackersList[i];
-        candidates.push({ id: `m-pass-${p.id}`, type: 'pass', targetId: p.id, description: `Pass to #${p.id}`, score: 0.5 - i * 0.05 });
-      }
-      candidates.push({ id: 'm-dribble', type: 'dribble', description: 'Dribble forward', score: 0.3 });
-    }
-
-    // Sort by score desc so best action is first
-    candidates.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-    setMoves(candidates.slice(0, 5));
+    sample.push({ id: 'm-dribble', type: 'dribble', description: 'Dribble forward', score: 0.3 });
+    setMoves(sample.slice(0,5));
   };
-
-    // Execute a chosen move (called from Pitch when arrow is clicked)
-    const handleExecuteMove = (move: { id: string; type: string; targetId?: string | null }) => {
-      if (!move) return;
-      try {
-        if (move.type === 'pass' && move.targetId) {
-          // assign ball to the target player
-          setBallCarrier(move.targetId);
-          // re-suggest moves after a pass
-          setTimeout(() => fetchSuggestedMoves(), 50);
-        } else if (move.type === 'shoot') {
-          // simulate shot: immediately refresh suggestions with shot penalised
-          setShotCooldown(true);
-          // refresh suggestions now with an explicit penalisation so a pass is promoted
-          fetchSuggestedMoves(undefined, { penalizeShot: true });
-          // after a short cooldown allow shots again and re-run normal suggestions
-          setTimeout(() => { setShotCooldown(false); fetchSuggestedMoves(); }, 1200);
-        }
-      } catch (e) {
-        console.error('Execute move error', e);
-      }
-    };
-
-  // Auto-suggest moves when ball carrier or player positions change
-  useEffect(() => {
-    // lightweight, non-blocking suggestion
-    fetchSuggestedMoves();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ballCarrier, players]);
 
   useEffect(() => {
     const p = players.find((pl) => pl.id === ballCarrier);
@@ -172,10 +108,7 @@ function App() {
       const defenders = players.filter((p) => p.type === 'defender').map((p) => ({ x: p.position.x, y: p.position.y, id: p.id, team: 0 }));
       const keepers = players.filter(p => p.id === '1' || p.id === 'd1').map(p => ({ x: p.position.x, y: p.position.y, id: p.id, team: p.id === '1' ? 1 : 0 }));
       const resp = await fetch('http://localhost:5001/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ attackers, defenders, keepers, ball_id: ballCarrier }) });
-      const xt = await resp.json();
-      setXTResult(xt);
-      // Update suggested moves based on this xt result
-      try { await fetchSuggestedMoves(xt); } catch (e) { /* ignore */ }
+      setXTResult(await resp.json());
     } catch (err) { setXTResult({ error: 'xT failed' }); }
     finally { setXTLoading(false); }
   };
@@ -292,45 +225,15 @@ function App() {
           </div>
         )}
 
-        <div style={{ position: 'absolute', right: 64, top: 12, zIndex: 50 }}>
+        <div style={{ position: 'absolute', right: 20, top: 20, zIndex: 50 }}>
           <button
-            aria-label={isPitchFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
             onClick={async () => {
               if (!document.fullscreenElement) await pitchContainerRef.current?.requestFullscreen();
               else await document.exitFullscreen();
             }}
-            title={isPitchFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              color: '#fff',
-              width: 44,
-              height: 44,
-              padding: 8,
-              borderRadius: 10,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 15px', borderRadius: 8, cursor: 'pointer' }}
           >
-            {isPitchFullscreen ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 3H5a2 2 0 0 0-2 2v4" />
-                <path d="M21 9V5a2 2 0 0 0-2-2h-4" />
-                <path d="M3 15v4a2 2 0 0 0 2 2h4" />
-                <path d="M15 21h4a2 2 0 0 0 2-2v-4" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 9V5a2 2 0 0 1 2-2h4" />
-                <path d="M21 15v4a2 2 0 0 1-2 2h-4" />
-                <path d="M21 9V5a2 2 0 0 0-2-2h-4" opacity="0" />
-                <path d="M3 15v4a2 2 0 0 0 2 2h4" opacity="0" />
-                <path d="M21 3l-6 6" />
-                <path d="M3 21l6-6" />
-              </svg>
-            )}
+            {isPitchFullscreen ? 'EXIT' : 'FULLSCREEN'}
           </button>
         </div>
 
@@ -342,8 +245,6 @@ function App() {
           teamColor={teamColor}
           opponentColor={opponentColor}
           onAssignBall={handleAssignBall}
-          moves={moves}
-          onExecuteMove={handleExecuteMove}
         />
       </main>
 
@@ -373,15 +274,12 @@ function App() {
             <PlayerInfo
               playerId={ballCarrier}
               playerPosition={selectedPlayerPosition || undefined}
-              metrics={selectedMetrics}
-              onClose={undefined}
             />
           </div>
 
           {/* BOX 2: DECISION ENGINE */}
           <div style={{ background: 'linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)', padding: '20px', borderRadius: '12px', border: '1px solid #312e81', flexShrink: 0 }}>
-            <h2 style={{ fontSize: '16px', color: '#e2e8f0', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '20px' }}>🧠</span>
+            <h2 style={{ fontSize: '16px', color: '#e2e8f0', marginBottom: '8px' }}>
               Decision Engine
             </h2>
             <p style={{ fontSize: '11px', color: '#6b7280', marginTop: 0, marginBottom: '16px' }}>
@@ -409,57 +307,12 @@ function App() {
                 transition: 'all 0.2s ease',
               }}
             >
-              {xTLoading ? '⏳ Computing...' : '⚡ Compute Best Action'}
+              {xTLoading ? 'Computing...' : 'Compute Best Action'}
             </button>
 
-            {/* Results Display */}
+            {/* Results Display: show ranked best options first, raw xT collapsible */}
             {xTResult && !xTResult.error && (
-              <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
-                
-                {/* Current xT */}
-                {xTResult.current_xT !== undefined && xTResult.current_xT !== null && (
-                  <div style={{
-                    padding: '10px 14px',
-                    background: 'rgba(99, 102, 241, 0.1)',
-                    borderBottom: '1px solid rgba(99, 102, 241, 0.2)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <span style={{ fontSize: '11px', color: '#a5b4fc' }}>Current Position Value</span>
-                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#818cf8' }}>
-                      {((xTResult.current_xT as number) * 100).toFixed(2)}%
-                    </span>
-                  </div>
-                )}
-
-                {/* Shoot */}
-                {xTResult.shoot && (
-                  <div style={{ 
-                    padding: '12px 14px', 
-                    borderBottom: '1px solid rgba(99, 102, 241, 0.2)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '20px' }}>⚽</span>
-                      <div>
-                        <div style={{ fontWeight: 600, color: '#fbbf24', fontSize: '13px' }}>Shoot</div>
-                        <div style={{ fontSize: '9px', color: '#6b7280' }}>Expected Goal</div>
-                      </div>
-                    </div>
-                    <div style={{ 
-                      fontSize: '18px', 
-                      fontWeight: 700, 
-                      color: xTResult.shoot.xG > 0.15 ? '#22c55e' : xTResult.shoot.xG > 0.05 ? '#fbbf24' : '#ef4444'
-                    }}>
-                      {(xTResult.shoot.xG * 100).toFixed(1)}%
-                    </div>
-                  </div>
-                )}
-
-                {/* Pass Options */}
+              <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.18)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(99, 102, 241, 0.08)' }}>
                 {(() => {
                   const passActions = Object.entries(xTResult)
                     .filter(([key]) => key.startsWith('pass_to_'))
@@ -472,86 +325,63 @@ function App() {
                     }))
                     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
-                  if (passActions.length === 0) return null;
+                  const options: Array<any> = [];
+                  if (xTResult.shoot) {
+                    options.push({ id: 'shoot', label: 'Shoot', desc: 'Expected Goal', value: xTResult.shoot.xG, kind: 'shoot' });
+                  }
 
-                  const bestPass = passActions[0];
-                  const topPasses = passActions.slice(0, 5);
+                  passActions.forEach((p) => {
+                    options.push({ id: `pass_${p.playerId}`, label: `Pass to #${p.playerId}`, desc: `${(p.probability * 100).toFixed(0)}% success`, value: p.score ?? 0, kind: 'pass', meta: p });
+                  });
+
+                  const dribbleMove = moves.find(m => m.type === 'dribble');
+                  if (xTResult.dribble) options.push({ id: 'dribble', label: 'Dribble', desc: 'Dribble option', value: xTResult.dribble.score ?? 0, kind: 'dribble' });
+                  else if (dribbleMove) options.push({ id: 'dribble', label: 'Dribble', desc: dribbleMove.description, value: dribbleMove.score ?? 0, kind: 'dribble' });
+
+                  options.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+                  const topOptions = options.slice(0, 4);
 
                   return (
-                    <div style={{ padding: '12px 14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                        <span style={{ fontSize: '20px' }}>📤</span>
-                        <div>
-                          <div style={{ fontWeight: 600, color: '#c084fc', fontSize: '13px' }}>Pass Options</div>
-                          <div style={{ fontSize: '9px', color: '#6b7280' }}>Ranked by expected value</div>
-                        </div>
+                    <div style={{ padding: '12px' }}>
+                      <div style={{ fontWeight: 700, color: '#c084fc', marginBottom: '8px', fontSize: '13px' }}>Top Recommendations</div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {topOptions.length === 0 && (
+                          <div style={{ fontSize: 12, color: '#9ca3af' }}>No suggestions available.</div>
+                        )}
+
+                        {topOptions.map((opt, idx) => {
+                          const isTop = idx === 0;
+                          return (
+                            <div
+                              key={opt.id}
+                              style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  padding: isTop ? '14px' : '10px',
+                                  borderRadius: '10px',
+                                  background: isTop ? 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(234,179,8,0.06))' : 'rgba(0,0,0,0.16)',
+                                  boxShadow: isTop ? '0 6px 18px rgba(245,158,11,0.08)' : 'none',
+                                  border: isTop ? '1px solid rgba(245,158,11,0.18)' : '1px solid rgba(255,255,255,0.02)'
+                                }}
+                            >
+                              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <div style={{ width: 30, height: 30, borderRadius: 8, background: isTop ? '#f59e0b' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', fontWeight: 700 }}>{idx + 1}</div>
+                                <div>
+                                  <div style={{ fontWeight: 800, fontSize: isTop ? 15 : 13 }}>{opt.label}</div>
+                                  <div style={{ fontSize: 11, color: '#9ca3af' }}>{opt.desc}</div>
+                                </div>
+                              </div>
+                              <div style={{ fontWeight: 800, color: opt.value > 0 ? '#16a34a' : opt.value < 0 ? '#ef4444' : '#f59e0b', fontSize: isTop ? 16 : 13 }}>
+                                {opt.kind === 'shoot' ? `${(opt.value * 100).toFixed(1)}%` : `${opt.value > 0 ? '+' : ''}${(opt.value * 100).toFixed(2)}%`}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
 
-                      {/* Best Pass */}
-                      {bestPass && (
-                        <div style={{
-                          background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)',
-                          borderRadius: '6px',
-                          padding: '10px',
-                          marginBottom: '8px',
-                          border: '1px solid rgba(34, 197, 94, 0.3)'
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontSize: '10px', background: '#22c55e', color: '#000', padding: '2px 5px', borderRadius: '3px', fontWeight: 700 }}>BEST</span>
-                              <span style={{ fontWeight: 600, fontSize: '13px' }}>#{bestPass.playerId}</span>
-                            </div>
-                            <div style={{ 
-                              fontSize: '16px', 
-                              fontWeight: 700, 
-                              color: bestPass.score > 0 ? '#22c55e' : '#ef4444'
-                            }}>
-                              {bestPass.score > 0 ? '+' : ''}{(bestPass.score * 100).toFixed(2)}%
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', gap: '12px', fontSize: '10px' }}>
-                            <div>
-                              <span style={{ color: '#6b7280' }}>Prob: </span>
-                              <span style={{ color: '#22c55e', fontWeight: 600 }}>{(bestPass.probability * 100).toFixed(0)}%</span>
-                            </div>
-                            <div>
-                              <span style={{ color: '#6b7280' }}>Gain: </span>
-                              <span style={{ color: bestPass.reward > 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
-                                {bestPass.reward > 0 ? '+' : ''}{(bestPass.reward * 100).toFixed(1)}%
-                              </span>
-                            </div>
-                            <div>
-                              <span style={{ color: '#6b7280' }}>Risk: </span>
-                              <span style={{ color: '#f87171', fontWeight: 600 }}>{(bestPass.risk * 100).toFixed(1)}%</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Other top passes */}
-                      {topPasses.slice(1).length > 0 && (
-                        <div style={{ fontSize: '10px' }}>
-                          {topPasses.slice(1).map(({ playerId, probability, score }) => (
-                            <div key={playerId} style={{ 
-                              display: 'flex', 
-                              justifyContent: 'space-between', 
-                              padding: '6px 8px',
-                              background: 'rgba(0,0,0,0.2)',
-                              borderRadius: '4px',
-                              marginBottom: '4px'
-                            }}>
-                              <span>#{playerId}</span>
-                              <span style={{ color: '#6b7280' }}>{(probability * 100).toFixed(0)}% prob</span>
-                              <span style={{ 
-                                fontWeight: 600,
-                                color: score > 0 ? '#22c55e' : score < -0.01 ? '#ef4444' : '#fbbf24'
-                              }}>
-                                {score > 0 ? '+' : ''}{(score * 100).toFixed(2)}%
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      {/* Full xT results hidden by default to keep UI focused on recommendations */}
                     </div>
                   );
                 })()}
@@ -560,15 +390,15 @@ function App() {
 
             {xTResult?.error && (
               <div style={{ marginTop: '12px', padding: '10px', background: '#7f1d1d', borderRadius: '6px', fontSize: '12px' }}>
-                <span>❌ {xTResult.error}</span>
+                <span>Error: {xTResult.error}</span>
               </div>
             )}
           </div>
 
           {/* BOX 3: AI SITUATION GENERATOR */}
           <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <h2 style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>✨</span> AI Scenario Generator
+            <h2 style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '10px' }}>
+              AI Scenario Generator
             </h2>
             <textarea
               value={customSituation}
@@ -581,32 +411,31 @@ function App() {
               disabled={!customSituation.trim() || generationStatus === 'loading'}
               style={{ marginTop: '8px', padding: '10px', background: generationStatus === 'loading' ? '#374151' : '#7c3aed', color: 'white', border: 'none', borderRadius: '6px', cursor: customSituation.trim() && generationStatus !== 'loading' ? 'pointer' : 'not-allowed', fontSize: '12px', width: '100%', opacity: customSituation.trim() && generationStatus !== 'loading' ? 1 : 0.7 }}
             >
-              {generationStatus === 'loading' ? '⏳ Generating...' : '🎨 Generate with AI'}
+              {generationStatus === 'loading' ? 'Generating...' : 'Generate with AI'}
             </button>
 
             {generationStatus === 'success' && (
-              <div style={{ marginTop: '8px', padding: '8px', background: '#065f46', borderRadius: '6px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>✓</span> Positions generated!
+              <div style={{ marginTop: '8px', padding: '8px', background: '#065f46', borderRadius: '6px', fontSize: '12px' }}>
+                Positions generated!
               </div>
             )}
 
             {generationStatus === 'error' && !aiRefusalMessage && (
               <div style={{ marginTop: '8px', padding: '8px', background: '#7f1d1d', borderRadius: '6px', fontSize: '12px' }}>
-                ❌ Generation failed
+                Generation failed
               </div>
             )}
 
             {aiRefusalMessage && (
               <div style={{ marginTop: '8px', padding: '8px', background: '#92400e', borderRadius: '6px', fontSize: '11px' }}>
-                ⚠ {aiRefusalMessage}
+                Warning: {aiRefusalMessage}
               </div>
             )}
           </div>
 
           {/* BOX 4: TEAM SETTINGS */}
           <div style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 8px 24px rgba(2,6,23,0.6)', backdropFilter: 'blur(6px)', flexShrink: 0 }}>
-            <h2 style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', marginBottom: '14px', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: 13, lineHeight: 1 }}>⚙️</span>
+            <h2 style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', marginBottom: '14px', letterSpacing: '0.05em' }}>
               Team Settings
             </h2>
 
@@ -643,8 +472,8 @@ function App() {
           </div>
 
           {/* BOX 5: PRESET SITUATIONS */}
-          <details style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <summary style={{ fontSize: '11px', color: '#6b7280', cursor: 'pointer' }}>⚔️ Preset Situations</summary>
+            <details style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <summary style={{ fontSize: '11px', color: '#6b7280', cursor: 'pointer' }}>Preset Situations</summary>
             <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {SITUATION_PRESETS.map((preset) => (
                 <button key={preset.name} onClick={() => handleLoadPreset(preset)} style={{ padding: '8px', background: '#065f46', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>{preset.name}</button>
@@ -652,7 +481,7 @@ function App() {
 
           {/* BOX 6: TEST ENDPOINT (collapsed) */}
           <details style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <summary style={{ fontSize: '11px', color: '#6b7280', cursor: 'pointer' }}>🔧 Debug: Test Endpoint</summary>
+            <summary style={{ fontSize: '11px', color: '#6b7280', cursor: 'pointer' }}>Debug: Test Endpoint</summary>
             <div style={{ marginTop: '12px' }}>
               <button
                 onClick={handleTestEndpoint}
@@ -678,5 +507,6 @@ function App() {
     </div>
   );
 }
+
 
 export default App;

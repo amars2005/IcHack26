@@ -155,10 +155,7 @@ export function MenuBar({
 
         {/* Calculate Actions Section */}
         <div style={{ marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '16px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '20px' }}>🧠</span>
-            Decision Engine
-          </h3>
+          <h3 style={{ fontSize: '16px', marginBottom: '8px' }}>Decision Engine</h3>
           <p style={{ fontSize: '12px', color: '#6b7280', marginTop: 0, marginBottom: '12px' }}>
             AI-powered analysis of optimal actions
           </p>
@@ -182,7 +179,7 @@ export function MenuBar({
               transition: 'all 0.2s ease',
             }}
           >
-            {xTLoading ? '⏳ Computing...' : '⚡ Compute Best Action'}
+            {xTLoading ? 'Computing...' : 'Compute Best Action'}
           </button>
 
           {xTResult && !xTResult.error && (
@@ -225,7 +222,7 @@ export function MenuBar({
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: '18px'
-                    }}>⚽</div>
+                    }}></div>
                     <div>
                       <div style={{ fontWeight: 600, color: '#fbbf24', fontSize: '14px' }}>Shoot</div>
                       <div style={{ fontSize: '10px', color: '#6b7280' }}>Expected Goal</div>
@@ -262,7 +259,7 @@ export function MenuBar({
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: '18px'
-                    }}>🏃</div>
+                    }}></div>
                     <div>
                       <div style={{ fontWeight: 600, color: '#60a5fa', fontSize: '14px' }}>Carry</div>
                       <div style={{ fontSize: '10px', color: '#6b7280' }}>Dribble Forward</div>
@@ -313,7 +310,7 @@ export function MenuBar({
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontSize: '18px'
-                      }}>📤</div>
+                      }}></div>
                       <div>
                         <div style={{ fontWeight: 600, color: '#c084fc', fontSize: '14px' }}>Pass Options</div>
                         <div style={{ fontSize: '10px', color: '#6b7280' }}>Ranked by expected value</div>

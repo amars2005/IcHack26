@@ -47,7 +47,7 @@ function getHeatmapColor(value: number, min: number, max: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1, heatmap, showHeatmap = true, teamColor, opponentColor, onAssignBall, moves = [] }: PitchProps) {
+export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1, heatmap, showHeatmap = true, teamColor, opponentColor, onAssignBall, moves = [], onExecuteMove }: PitchProps) {
   const [hoverInfo, setHoverInfo] = useState<HoverInfo>(null);
   const goalWidth = 20;
   const penaltyBoxWidth = 18;
