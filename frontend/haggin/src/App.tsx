@@ -7,6 +7,7 @@ import type { GenerationStatus } from './types';
 import { INITIAL_PLAYERS, INITIAL_BALL_CARRIER, PITCH_WIDTH, PITCH_HEIGHT } from './constants';
 import { generateSituation, AIError, fetchPlayerMetrics } from './llm';
 import { PlayerInfo } from './components/PlayerInfo';
+import BrandingImage from './components/BrandingImage';
 
 function App() {
   const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
@@ -24,8 +25,8 @@ function App() {
   type Move = { id: string; type: 'pass' | 'shoot' | 'dribble' | 'other'; targetId?: string | null; description: string; score?: number };
   const [moves, setMoves] = useState<Move[]>([]);
   
-  const [teamName, setTeamName] = useState('My Team');
-  const [teamColor, setTeamColor] = useState('#ffd43b');
+  const [teamName, setTeamName] = useState("FC Haggin'");
+  const [teamColor, setTeamColor] = useState('#7A28AB');
   const [formation, setFormation] = useState('4-4-2');
   const [editingTeamName, setEditingTeamName] = useState(false);
   const teamInputRef = useRef<HTMLInputElement | null>(null);
@@ -231,6 +232,11 @@ function App() {
           zIndex: 100
         }}>
           {/* (duplicate Team Settings removed) */}
+
+          {/* BRANDING: logo / upload */}
+          <div style={{ flexShrink: 0 }}>
+            <BrandingImage />
+          </div>
 
           {/* BOX 1: SUGGESTED MOVES */}
           <div style={{ background: 'linear-gradient(90deg, rgba(124,58,237,0.08), rgba(99,102,241,0.03))', padding: '16px', borderRadius: '14px', border: '1px solid rgba(124,58,237,0.18)', boxShadow: '0 8px 30px rgba(2,6,23,0.6)', flexShrink: 0 }}>
