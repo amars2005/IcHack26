@@ -235,14 +235,17 @@ def start_app():
                 "ball_y": ball_position['y'],
             }
 
-            for i in range(10):  #  for 11 players
-                data_dict[f"p_{i}_x"] = attackers[i]["x"]
-                data_dict[f"p_{i}_y"] = attackers[i]["y"]
-                data_dict[f'p_{i}_team'] = 1  # attacker
+            # Attackers: p0 through p9 (10 outfield players)
+            for i in range(len(attackers)):
+                data_dict[f"p{i}_x"] = attackers[i]["x"]
+                data_dict[f"p{i}_y"] = attackers[i]["y"]
+                data_dict[f'p{i}_team'] = 1  # attacker
 
-                data_dict[f"p_{i+11}_x"] = defenders[i]["x"]
-                data_dict[f"p_{i+11}_y"] = defenders[i]["y"]
-                data_dict[f'p_{i+11}_team'] = 0  # defender
+            # Defenders: p10 through p19 (10 outfield players)
+            for i in range(len(defenders)):
+                data_dict[f"p{i+10}_x"] = defenders[i]["x"]
+                data_dict[f"p{i+10}_y"] = defenders[i]["y"]
+                data_dict[f'p{i+10}_team'] = 0  # defender
 
             data_dict[f"keeper_1_x"] = keepers[0]["x"]
             data_dict[f"keeper_1_y"] = keepers[0]["y"]
@@ -276,7 +279,11 @@ def start_app():
             # should pass ball position to model ie:
             ball_pos_tuple = (ball_position['x'], ball_position['y'])
 
-            for i in range(11):
+            for i in range(len(attackers)):
+                player_id = attackers[i]["id"]
+
+                if player_id == ball_id:
+                    continue
                 # run model evaluations to pass to each player
 
                 # player i position (from attackers) ie
@@ -287,10 +294,16 @@ def start_app():
 
                 from backend.generalpv.passProbabilityModel import PassProbabilityModel
                 model = PassProbabilityModel(skip_training=True)
-                pass_likelihood = model.calculate_pass_probability(**data_dict)
+                model_path = os.path.join(os.path.dirname(os.path.dirname(
+                    __file__)), "models/pass_probability_model.pkl")
+                model.load_model(model_path)
+                pass_likelihood = model.calculate_pass_probability(
+                    start_x=ball_pos_tuple[0], start_y=ball_pos_tuple[1], end_x=i_pos_tuple[0], end_y=i_pos_tuple[1], team_id=1, **data_dict)
 
-                actions[f"pass_to_{i}"] = {
+                actions[f"pass_to_{player_id}"] = {
                     "xT": pass_xT, "P(success)": pass_likelihood}
+
+            print("Predicted actions:", actions)
 
             return json.dumps(actions)
 
