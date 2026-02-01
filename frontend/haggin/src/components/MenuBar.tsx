@@ -63,12 +63,13 @@ export function MenuBar({
     try {
       const base64 = await readFileAsBase64(imageFile);
       const payload = { image: base64 };
-      const resp = await fetch('http://localhost:5137/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const resp = await fetch('http://localhost:5001/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await resp.json();
       setImageResponse(data);
     } catch (err) {
       console.error('Image upload failed', err);
-      setImageResponse({ error: String(err) });
+      const msg = err instanceof Error ? err.message : String(err);
+      setImageResponse({ error: `Upload failed: ${msg}. Is the backend running on http://localhost:5001 ?` });
     } finally {
       setImageLoading(false);
     }

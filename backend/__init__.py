@@ -12,6 +12,7 @@ import lightgbm as lgb
 dotenv.load_dotenv()
 
 URL = 'https://api.anthropic.com/v1/messages'
+MODEL = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
 IMAGE_PROMPT = """You are an expert football/soccer tactical analyst with advanced computer vision capabilities.
 Your task is to analyze an image of a football pitch (tactical diagram, heatmap, TV broadcast frame, or 2D plot) and convert it into EXACT (x, y) COORDINATES for 22 players according to a specific coordinate system.
 
@@ -414,7 +415,7 @@ def start_app():
         }
 
         payload = {
-            'model': 'claude-sonnet-4-5',
+            'model': MODEL,
             'max_tokens': 2000,
             'system': SYSTEM_PROMPT,
             'messages': [
@@ -457,7 +458,7 @@ def start_app():
             }
 
             payload = {
-                'model': 'claude-3-5-sonnet-20241022',  # Ensure you use a vision-capable model
+                'model': MODEL,  # model name configurable via ANTHROPIC_MODEL env var
                 'max_tokens': 2000,
                 'system': IMAGE_PROMPT,
                 'messages': [
