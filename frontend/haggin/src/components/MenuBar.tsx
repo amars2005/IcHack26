@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Player } from '../types';
 import type { Preset } from '../presets';
-import type { GenerationStatus } from '../types';
+import type { GenerationStatus, XTResult } from '../types';
 import { COLORS } from '../constants';
 import { FORMATION_PRESETS, SITUATION_PRESETS } from '../presets';
 
@@ -31,7 +31,14 @@ export function MenuBar({
   onBallCarrierChange,
   onLoadPreset,
   onGenerateCustom,
-  generationStatus
+  generationStatus,
+  onCalculateXT,
+  xTResult,
+  xTLoading,
+  aiRefusalMessage,
+  teamName,
+  teamColor,
+  opponentColor,
 }: MenuBarProps) {
   const [customSituation, setCustomSituation] = useState('');
   const attackers = players.filter((p) => p.type === 'attacker');
