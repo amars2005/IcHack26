@@ -56,19 +56,83 @@ function App() {
     setBallCarrier(id);
   };
 
-  const fetchSuggestedMoves = async () => {
-    // Placeholder: generate simple moves based on current players and ball carrier.
-    // Backend will replace this with a real API returning structured Move[].
-    const attackersList = players.filter(p => p.type === 'attacker' && p.id !== ballCarrier);
-    const sample: Move[] = [];
-    // Suggest up to 4 passes to nearest attackers + 1 shoot/dribble option
-    for (let i = 0; i < Math.min(4, attackersList.length); i++) {
-      const p = attackersList[i];
-      sample.push({ id: `m-pass-${p.id}`, type: 'pass', targetId: p.id, description: `Pass to #${p.id}`, score: 0.5 - i * 0.05 });
+  const [shotCooldown, setShotCooldown] = useState(false);
+
+  const fetchSuggestedMoves = async (xtParam?: any, opts: { penalizeShot?: boolean } = {}) => {
+    const xt = xtParam ?? xTResult;
+    let candidates: Array<Move & { score: number | undefined }> = [];
+
+    if (xt && !xt.error) {
+      // Collect pass options
+      const passActions = Object.entries(xt || {})
+        .filter(([key]) => key.startsWith('pass_to_'))
+        .map(([key, value]: [string, any]) => ({
+          playerId: key.replace('pass_to_', ''),
+          score: value?.score ?? value?.reward ?? value?.['P(success)'] ?? 0,
+        }))
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+
+      for (let i = 0; i < Math.min(4, passActions.length); i++) {
+        const p = passActions[i];
+        candidates.push({ id: `m-pass-${p.playerId}`, type: 'pass', targetId: p.playerId, description: `Pass to #${p.playerId}`, score: p.score });
+      }
+
+      // Shoot candidate (use xG or a derived score)
+      const shootXG = xt.shoot?.xG ?? xt.shoot?.xg ?? xt.shoot?.probability ?? null;
+      if (shootXG != null) {
+        let shootScore = Number(shootXG) ?? 0;
+        // Revert: do not force-shot when >50% — let sorting decide.
+        // If a shot was just executed, temporarily deprioritise further shots so a subsequent pass can be chosen.
+        if (shotCooldown || opts.penalizeShot) {
+          shootScore = shootScore - 10; // large penalty to push it out of top choices
+        }
+        candidates.push({ id: 'm-shoot', type: 'shoot', description: 'Shoot on goal', score: shootScore });
+      }
     }
-    sample.push({ id: 'm-dribble', type: 'dribble', description: 'Dribble forward', score: 0.3 });
-    setMoves(sample.slice(0,5));
+
+    // If no candidates from xt, fallback to basic heuristics
+    if (candidates.length === 0) {
+      const attackersList = players.filter(p => p.type === 'attacker' && p.id !== ballCarrier);
+      for (let i = 0; i < Math.min(4, attackersList.length); i++) {
+        const p = attackersList[i];
+        candidates.push({ id: `m-pass-${p.id}`, type: 'pass', targetId: p.id, description: `Pass to #${p.id}`, score: 0.5 - i * 0.05 });
+      }
+      candidates.push({ id: 'm-dribble', type: 'dribble', description: 'Dribble forward', score: 0.3 });
+    }
+
+    // Sort by score desc so best action is first
+    candidates.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    setMoves(candidates.slice(0, 5));
   };
+
+    // Execute a chosen move (called from Pitch when arrow is clicked)
+    const handleExecuteMove = (move: { id: string; type: string; targetId?: string | null }) => {
+      if (!move) return;
+      try {
+        if (move.type === 'pass' && move.targetId) {
+          // assign ball to the target player
+          setBallCarrier(move.targetId);
+          // re-suggest moves after a pass
+          setTimeout(() => fetchSuggestedMoves(), 50);
+        } else if (move.type === 'shoot') {
+          // simulate shot: immediately refresh suggestions with shot penalised
+          setShotCooldown(true);
+          // refresh suggestions now with an explicit penalisation so a pass is promoted
+          fetchSuggestedMoves(undefined, { penalizeShot: true });
+          // after a short cooldown allow shots again and re-run normal suggestions
+          setTimeout(() => { setShotCooldown(false); fetchSuggestedMoves(); }, 1200);
+        }
+      } catch (e) {
+        console.error('Execute move error', e);
+      }
+    };
+
+  // Auto-suggest moves when ball carrier or player positions change
+  useEffect(() => {
+    // lightweight, non-blocking suggestion
+    fetchSuggestedMoves();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ballCarrier, players]);
 
   useEffect(() => {
     const p = players.find((pl) => pl.id === ballCarrier);
@@ -108,7 +172,10 @@ function App() {
       const defenders = players.filter((p) => p.type === 'defender').map((p) => ({ x: p.position.x, y: p.position.y, id: p.id, team: 0 }));
       const keepers = players.filter(p => p.id === '1' || p.id === 'd1').map(p => ({ x: p.position.x, y: p.position.y, id: p.id, team: p.id === '1' ? 1 : 0 }));
       const resp = await fetch('http://localhost:5001/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ attackers, defenders, keepers, ball_id: ballCarrier }) });
-      setXTResult(await resp.json());
+      const xt = await resp.json();
+      setXTResult(xt);
+      // Update suggested moves based on this xt result
+      try { await fetchSuggestedMoves(xt); } catch (e) { /* ignore */ }
     } catch (err) { setXTResult({ error: 'xT failed' }); }
     finally { setXTLoading(false); }
   };
@@ -275,6 +342,8 @@ function App() {
           teamColor={teamColor}
           opponentColor={opponentColor}
           onAssignBall={handleAssignBall}
+          moves={moves}
+          onExecuteMove={handleExecuteMove}
         />
       </main>
 
