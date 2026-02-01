@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <radialGradient id="bg" cx="45%" cy="35%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="60%" stop-color="#f3f4f6" />
+      <stop offset="100%" stop-color="#e5e7eb" />
+    </radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Ball base with subtle shading -->
+  <g filter="url(#shadow)">
+    <circle cx="200" cy="200" r="180" fill="url(#bg)" stroke="#111" stroke-width="2" />
+  </g>
+
+  <!-- Stylized pentagon/hexagon pattern for a classic soccer ball -->
+  <g transform="translate(200,200) scale(1.1)">
+    <!-- central pentagon -->
+    <polygon points="0,-70 50,-20 30,55 -30,55 -50,-20" fill="#000" stroke="#000" stroke-width="1" />
+
+    <!-- surrounding black panels (stylized hex/pent mix) -->
+    <g fill="#000" stroke="#000" stroke-width="1">
+      <g transform="rotate(0)">
+        <path d="M0,-120 L70,-60 L45,30 L-45,30 L-70,-60 Z" />
+      </g>
+      <g transform="rotate(72)">
+        <path d="M0,-120 L70,-60 L45,30 L-45,30 L-70,-60 Z" />
+      </g>
+      <g transform="rotate(144)">
+        <path d="M0,-120 L70,-60 L45,30 L-45,30 L-70,-60 Z" />
+      </g>
+      <g transform="rotate(216)">
+        <path d="M0,-120 L70,-60 L45,30 L-45,30 L-70,-60 Z" />
+      </g>
+      <g transform="rotate(288)">
+        <path d="M0,-120 L70,-60 L45,30 L-45,30 L-70,-60 Z" />
+      </g>
+    </g>
+
+    <!-- subtle white seams -->
+    <g stroke="#ffffff" stroke-width="4" stroke-linecap="round" fill="none" stroke-opacity="0.9">
+      <path d="M-140,0 C-80,-80 80,-80 140,0" />
+      <path d="M-140,20 C-0,120 0,-120 140,-20" />
+    </g>
+  </g>
+</svg>

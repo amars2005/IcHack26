@@ -15,6 +15,9 @@ type MenuBarProps = {
   onGenerateCustom: (situation: string) => Promise<void>;
   generationStatus: GenerationStatus;
   aiRefusalMessage?: string | null;
+  teamName?: string;
+  teamColor?: string;
+  opponentColor?: string;
 };
 
 export function MenuBar({
@@ -27,6 +30,8 @@ export function MenuBar({
   onGenerateCustom,
   generationStatus
   , aiRefusalMessage
+  , teamName, teamColor
+  , opponentColor
 }: MenuBarProps) {
   const [customSituation, setCustomSituation] = useState('');
   const attackers = players.filter((p) => p.type === 'attacker');
@@ -113,12 +118,12 @@ export function MenuBar({
           <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Team Colors</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: COLORS.attacker }} />
-              <span>Attacking Team</span>
+              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: teamColor || COLORS.attacker }} />
+              <span>{teamName || 'Attacking Team'}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: COLORS.defender }} />
-              <span>Defending Team</span>
+              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: opponentColor || COLORS.defender }} />
+              <span>{opponentColor ? 'Opposition' : 'Defending Team'}</span>
             </div>
           </div>
         </div>

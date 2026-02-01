@@ -9,9 +9,11 @@ type PlayerProps = {
   scale: number;
   hasBall: boolean;
   onDragEnd: (id: string, x: number, y: number) => void;
+  teamColor?: string;
+  opponentColor?: string;
 };
 
-export function Player({ player, scale, hasBall, onDragEnd }: PlayerProps) {
+export function Player({ player, scale, hasBall, onDragEnd, teamColor, opponentColor }: PlayerProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -40,12 +42,12 @@ export function Player({ player, scale, hasBall, onDragEnd }: PlayerProps) {
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  const outlineColor = player.type === 'attacker'
-    ? COLORS.attackerOutline
-    : COLORS.defenderOutline;
-
-  // Priority: dragging (black) > ball carrier (yellow) > team color
-  const ringColor = isDragging ? '#000' : hasBall ? '#fbbf24' : outlineColor;
+  // Priority: dragging (black) > ball carrier (yellow) > team/opponent color
+  const ringColor = isDragging
+    ? '#000'
+    : hasBall
+      ? '#fbbf24'
+      : (player.type === 'attacker' ? (teamColor || COLORS.attacker) : (opponentColor || COLORS.defender));
 
   // Extract player number from ID (e.g., 'd1' -> '1', '10' -> '10')
   const playerNumber = player.id.replace(/^d/, '');
@@ -86,7 +88,7 @@ export function Player({ player, scale, hasBall, onDragEnd }: PlayerProps) {
         cx={0}
         cy={0}
         r={PLAYER_RADIUS}
-        fill={COLORS[player.type]}
+        fill={player.type === 'attacker' ? (teamColor || COLORS.attacker) : (opponentColor || COLORS.defender)}
         style={{ cursor: 'move' }}
         onMouseDown={handleMouseDown}
       />
