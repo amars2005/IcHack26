@@ -6,11 +6,44 @@ from flask_cors import CORS
 import requests
 import json
 import os
+import math
 import dotenv
 import joblib
 import lightgbm as lgb
 from backend.generalpv.scale_metrics import normalize_value
 dotenv.load_dotenv()
+
+# Maximum distance (in meters) from closest opponent for carry to be viable
+MAX_CARRY_DIST = 10.0
+
+
+def get_closest_opponent_distance(ball_position: dict, defenders: list) -> float:
+    """
+    Calculate the distance to the closest opponent (defender) from the ball position.
+    
+    Args:
+        ball_position: Dict with 'x' and 'y' coordinates of the ball
+        defenders: List of defender dicts with 'x' and 'y' coordinates
+    
+    Returns:
+        Distance to the closest opponent in meters
+    """
+    if not defenders:
+        return float('inf')
+    
+    ball_x = ball_position['x']
+    ball_y = ball_position['y']
+    
+    min_dist = float('inf')
+    for defender in defenders:
+        dx = defender['x'] - ball_x
+        dy = defender['y'] - ball_y
+        dist = math.sqrt(dx * dx + dy * dy)
+        if dist < min_dist:
+            min_dist = dist
+    print("Closest opponent distance:", min_dist)
+    return min_dist
+
 
 MODEL_MODE = "nn"
 SYSTEM_PROMPT = """You are an expert football/soccer tactical analyst. Your task is to position EXACTLY 22 players (11 attacking, 11 defending) on a football pitch based on the described situation.
@@ -382,7 +415,14 @@ def start_app():
             # CARRY MODEL
             from backend.generalpv.carryModel import CarryModel
             carry_model = CarryModel()
-            if carry_model.is_trained:
+            
+            # Check if closest opponent is within MIN_CARRY_DIST - if so, carry is not viable
+            closest_opponent_dist = get_closest_opponent_distance(ball_position, defenders)
+            
+            if closest_opponent_dist > MAX_CARRY_DIST:
+                # Opponent too close - carry not viable
+                actions["carry"] = {"xT": None}
+            elif carry_model.is_trained:
                 carry_result = carry_model.calculate_carry_score(data_dict)
                 if carry_result:
                     actions["carry"] = {
