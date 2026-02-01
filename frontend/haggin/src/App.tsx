@@ -26,6 +26,7 @@ function App() {
   const [testLoading, setTestLoading] = useState(false);
   type Move = { id: string; type: 'pass' | 'shoot' | 'dribble' | 'carry' | 'other'; targetId?: string | null; description: string; score?: number };
   const [moves, setMoves] = useState<Move[]>([]);
+  const [showAllOptions, setShowAllOptions] = useState(false);
   
   const [teamName, setTeamName] = useState("FC Haggin'");
   const [teamColor, setTeamColor] = useState('#7A28AB');
@@ -379,14 +380,48 @@ function App() {
                                 </div>
                               </div>
                               <div style={{ fontWeight: 800, color: opt.value > 0 ? '#16a34a' : opt.value < 0 ? '#ef4444' : '#f59e0b', fontSize: isTop ? 16 : 13 }}>
-                                {opt.kind === 'shoot' ? `${(opt.value * 100).toFixed(1)}%` : `${opt.value > 0 ? '+' : ''}${(opt.value * 100).toFixed(2)}%`}
+                                {opt.kind === 'shoot' ? `${(opt.value * 100).toFixed(1)}%` : `${(opt.value * 100).toFixed(2)}%`}
                               </div>
                             </div>
                           );
                         })}
                       </div>
 
-                      {/* Full xT results hidden by default to keep UI focused on recommendations */}
+                      {/* Option to expand and view all candidate recommendations; remaining options render below top ones and button sits at bottom */}
+                      {options.length > topOptions.length && (() => {
+                        const remaining = options.slice(topOptions.length);
+                        return (
+                          <div style={{ marginTop: 10 }}>
+                            {showAllOptions && (
+                              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {remaining.map((opt, i) => (
+                                  <div key={`more-${opt.id}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.12)', border: '1px solid rgba(255,255,255,0.02)' }}>
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                      <div style={{ width: 26, height: 26, borderRadius: 6, background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', fontWeight: 700 }}>{topOptions.length + i + 1}</div>
+                                      <div>
+                                        <div style={{ fontWeight: 700, fontSize: 13 }}>{opt.label}</div>
+                                        <div style={{ fontSize: 11, color: '#9ca3af' }}>{opt.desc}</div>
+                                      </div>
+                                    </div>
+                                    <div style={{ fontWeight: 700, color: opt.value > 0 ? '#16a34a' : opt.value < 0 ? '#ef4444' : '#f59e0b', fontSize: 13 }}>
+                                      {opt.kind === 'shoot' ? `${(opt.value * 100).toFixed(1)}%` : `${(opt.value * 100).toFixed(2)}%`}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center' }}>
+                              <button
+                                onClick={() => setShowAllOptions(s => !s)}
+                                style={{ padding: '8px 10px', fontSize: 12, borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.04)', color: '#cbd5e1', cursor: 'pointer' }}
+                              >
+                                {showAllOptions ? 'Hide all options' : `Show all (${remaining.length})`}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })()}
