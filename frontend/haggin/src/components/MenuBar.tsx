@@ -14,6 +14,9 @@ type MenuBarProps = {
   onLoadPreset: (preset: Preset) => void;
   onGenerateCustom: (situation: string) => Promise<void>;
   generationStatus: GenerationStatus;
+  onCalculateXT: () => Promise<void>;
+  xTResult: XTResult | null;
+  xTLoading: boolean;
   aiRefusalMessage?: string | null;
   teamName?: string;
   teamColor?: string;
@@ -29,9 +32,6 @@ export function MenuBar({
   onLoadPreset,
   onGenerateCustom,
   generationStatus
-  , aiRefusalMessage
-  , teamName, teamColor
-  , opponentColor
 }: MenuBarProps) {
   const [customSituation, setCustomSituation] = useState('');
   const attackers = players.filter((p) => p.type === 'attacker');
