@@ -458,7 +458,7 @@ def start_app():
             }
 
             payload = {
-                'model': MODEL,  # model name configurable via ANTHROPIC_MODEL env var
+                'model': 'claude-sonnet-4-5',  # Ensure you use a vision-capable model
                 'max_tokens': 2000,
                 'system': IMAGE_PROMPT,
                 'messages': [
