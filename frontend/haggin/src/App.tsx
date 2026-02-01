@@ -19,6 +19,8 @@ function App() {
   const [isPitchFullscreen, setIsPitchFullscreen] = useState(false);
   const pitchContainerRef = useRef<HTMLDivElement | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [xTResult, setXTResult] = useState<any | null>(null);
+  const [xTLoading, setXTLoading] = useState(false);
   // Prescreen state shown after the initial loader
   const [prescreenVisible, setPrescreenVisible] = useState(true);
   const [teamName, setTeamName] = useState('My Team');
@@ -352,9 +354,39 @@ return (
             teamName={teamName}
             teamColor={teamColor}
             opponentColor={opponentColor}
-            onCalculateXT={async () => {}}
-            xTResult={null}
-            xTLoading={false}
+            onCalculateXT={async () => {
+              setXTLoading(true);
+              setXTResult(null);
+              try {
+                // Build payload from current players array
+                const attackers = players.filter((p) => p.type === 'attacker').map((p) => ({ x: p.position.x, y: p.position.y, id: p.id, team: 1 }));
+                const defenders = players.filter((p) => p.type === 'defender').map((p) => ({ x: p.position.x, y: p.position.y, id: p.id, team: 0 }));
+                // Keepers: attacker keeper id '1' then defender keeper id 'd1'
+                const keeperAtt = players.find((p) => p.id === '1');
+                const keeperDef = players.find((p) => p.id === 'd1');
+                const keepers = [] as Array<{ x: number; y: number; id: string; team: number }>;
+                if (keeperAtt) keepers.push({ x: keeperAtt.position.x, y: keeperAtt.position.y, id: keeperAtt.id, team: 1 });
+                if (keeperDef) keepers.push({ x: keeperDef.position.x, y: keeperDef.position.y, id: keeperDef.id, team: 0 });
+
+                const payload = {
+                  attackers,
+                  defenders,
+                  keepers,
+                  ball_id: ballCarrier,
+                };
+
+                const resp = await fetch('http://localhost:5001/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const data = await resp.json();
+                setXTResult(data);
+              } catch (err) {
+                console.error('xT calc error', err);
+                setXTResult({ error: 'xT failed' } as any);
+              } finally {
+                setXTLoading(false);
+              }
+            }}
+            xTResult={xTResult}
+            xTLoading={xTLoading}
           />
         </div>
       )}

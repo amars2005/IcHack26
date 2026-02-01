@@ -135,6 +135,36 @@ export function MenuBar({
           </div>
         </div>
 
+        {/* xT calculation */}
+        <div style={{ marginBottom: '24px' }}>
+          <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Expected Threat (xT)</h3>
+          <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: 0 }}>Calculate xT for the player currently in possession.</p>
+          <button
+            onClick={async () => { try { await onCalculateXT(); } catch (e) { console.error(e); } }}
+            disabled={xTLoading}
+            style={{
+              marginTop: '8px',
+              padding: '10px',
+              background: xTLoading ? '#6b7280' : '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: xTLoading ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              width: '100%'
+            }}
+          >
+            {xTLoading ? 'Calculating…' : 'Calculate xT for ball carrier'}
+          </button>
+
+          {xTResult && (
+            <div style={{ marginTop: 10, padding: 8, background: '#0b1224', borderRadius: 6, fontSize: 13 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>xT result</div>
+              <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 12 }}>{JSON.stringify(xTResult, null, 2)}</pre>
+            </div>
+          )}
+        </div>
+
         {/* Custom Situation Generator */}
         <div style={{ marginBottom: '24px' }}>
           <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Custom Situation</h3>
