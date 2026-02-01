@@ -267,7 +267,7 @@ def start_app():
                     from backend.generalpv.expectedThreatModel import ExpectedThreatModel
                     xT = ExpectedThreatModel(skip_training=True)
                     xT.load_model(os.path.join(os.path.dirname(
-                        __file__), "models/xt_model.pkl"))
+                        __file__), "models/xt_nn_model.pkl"))
 
             except Exception as e:
                 return {"error": f"Model loading failed: {e}"}, 500
@@ -292,100 +292,6 @@ def start_app():
                 "heatmap": heatmap_data
             }
             return json.dumps(response_data)
-
-    @app.route("/test-pass", methods=["POST"])
-    def test_pass():
-        """
-        Debug endpoint to test pass probability calculations.
-        """
-        if request.method == "POST":
-            data = request.get_json()
-
-            if not data:
-                return {"error": "No data provided"}, 400
-
-            attackers = data.get("attackers", [])
-            defenders = data.get("defenders", [])
-            keepers = data.get("keepers", [])
-
-            ball_id = data["ball_id"]
-            ball_position = next(
-                ({"x": p["x"], "y": p["y"]}
-                 for p in attackers if p["id"] == ball_id),
-                None)
-
-            if ball_position is None:
-                return {"error": "Ball position could not be determined from ball_id."}, 400
-
-            data_dict = {
-                "ball_x": ball_position['x'],
-                "ball_y": ball_position['y'],
-            }
-
-            for i in range(len(attackers)):
-                data_dict[f"p{i}_x"] = attackers[i]["x"]
-                data_dict[f"p{i}_y"] = attackers[i]["y"]
-                data_dict[f'p{i}_team'] = 1
-
-            for i in range(len(defenders)):
-                data_dict[f"p{i+10}_x"] = defenders[i]["x"]
-                data_dict[f"p{i+10}_y"] = defenders[i]["y"]
-                data_dict[f'p{i+10}_team'] = 0
-
-            data_dict["keeper_1_x"] = keepers[0]["x"]
-            data_dict["keeper_1_y"] = keepers[0]["y"]
-            data_dict['keeper_1_team'] = 1
-
-            data_dict["keeper_2_x"] = keepers[1]["x"]
-            data_dict["keeper_2_y"] = keepers[1]["y"]
-            data_dict['keeper_2_team'] = 0
-
-            ball_pos_tuple = (ball_position['x'], ball_position['y'])
-            pass_results = []
-
-            from backend.generalpv.passProbabilityModel import PassProbabilityModel
-            model = PassProbabilityModel(skip_training=True)
-            model_path = os.path.join(os.path.dirname(os.path.dirname(
-                __file__)), "models/pass_probability_model.pkl")
-            model.load_model(model_path)
-
-            for i in range(len(attackers)):
-                player_id = attackers[i]["id"]
-                if player_id == ball_id:
-                    continue
-
-                target_pos = (attackers[i]["x"], attackers[i]["y"])
-                pass_likelihood = model.calculate_pass_probability(
-                    start_x=ball_pos_tuple[0], start_y=ball_pos_tuple[1],
-                    end_x=target_pos[0], end_y=target_pos[1],
-                    team_id=1, **data_dict)
-
-                pass_results.append({
-                    "target_id": player_id,
-                    "target_x": target_pos[0],
-                    "target_y": target_pos[1],
-                    "probability": pass_likelihood,
-                    "distance": ((target_pos[0] - ball_pos_tuple[0])**2 + (target_pos[1] - ball_pos_tuple[1])**2)**0.5
-                })
-
-            # Sort by probability descending
-            pass_results.sort(key=lambda x: x["probability"], reverse=True)
-
-            # Calculate xG for shooting
-            from backend.generalpv.xg import ExpectedGoalModel
-            xg_model = ExpectedGoalModel(skip_training=True)
-            xg_model_path = os.path.join(os.path.dirname(os.path.dirname(
-                __file__)), "models/xg_model_360.pkl")
-            xg_model.load_model(xg_model_path)
-            xg_value = xg_model.calculate_expected_goal(**data_dict)
-
-            return json.dumps({
-                "ball_carrier": ball_id,
-                "ball_position": ball_position,
-                "shoot_xG": xg_value,
-                "pass_options": pass_results,
-                "data_dict_sample": {k: data_dict[k] for k in list(data_dict.keys())[:10]}
-            })
 
     @app.route("/", methods=["POST"])
     def predictions():
