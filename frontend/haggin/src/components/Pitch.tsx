@@ -4,7 +4,7 @@ import { PITCH_WIDTH, PITCH_HEIGHT, COLORS, GOAL_Y } from '../constants';
 
 type PitchProps = {
   players: PlayerType[];
-  ballCarrier: string;
+  ballCarrier: string | null;
   onPlayerMove: (id: string, x: number, y: number) => void;
   scale?: number;
 };

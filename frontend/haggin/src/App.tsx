@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Pitch } from './components/Pitch';
 import { MenuBar } from './components/MenuBar';
+import { PlayerInfo } from './components/PlayerInfo';
 import type { Player } from './types';
 import type { Preset } from './presets';
 import type { GenerationStatus, XTResult } from './types';
@@ -11,7 +12,7 @@ import { usePitchState } from './hooks';
 function App() {
   const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [ballCarrier, setBallCarrier] = useState(INITIAL_BALL_CARRIER);
+  const [ballCarrier, setBallCarrier] = useState<string | null>(INITIAL_BALL_CARRIER);
   const [generationStatus, setGenerationStatus] = useState<GenerationStatus>('idle');
   const [xTResult, setXTResult] = useState<XTResult | null>(null);
   const [xTLoading, setXTLoading] = useState(false);
@@ -65,13 +66,21 @@ function App() {
     }
   };
 
-  // Calculate pitch scale based on menu state - fill 70% of viewport
-  const availableWidth = (menuOpen ? window.innerWidth - 320 : window.innerWidth) * 0.7;
-  const availableHeight = window.innerHeight * 0.7;
-  const scale = Math.min(
-    availableWidth / PITCH_WIDTH,
-    availableHeight / PITCH_HEIGHT
-  );
+  // Track viewport safely (avoid direct window access during SSR)
+  const [viewport, setViewport] = useState(() => ({
+    w: typeof window !== 'undefined' ? window.innerWidth : 1200,
+    h: typeof window !== 'undefined' ? window.innerHeight : 800,
+  }));
+  useEffect(() => {
+    const onResize = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Calculate pitch scale based on menu state and viewport
+  const availableWidth = (menuOpen ? viewport.w - 320 : viewport.w) * 0.7;
+  const availableHeight = viewport.h * 0.7;
+  const scale = Math.max(0.3, Math.min(availableWidth / PITCH_WIDTH, availableHeight / PITCH_HEIGHT));
 
   const handleCalculateXT = async () => {
     setXTLoading(true);
@@ -124,6 +133,7 @@ function App() {
         onPlayerMove={handlePlayerMove}
         scale={scale}
       />
+        {/* PlayerInfo rendering removed to avoid unconditional rendering crashes */}
       <MenuBar
         players={players}
         isOpen={menuOpen}

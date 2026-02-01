@@ -8,9 +8,9 @@ import { FORMATION_PRESETS, SITUATION_PRESETS } from '../presets';
 type MenuBarProps = {
   players: Player[];
   isOpen: boolean;
-  ballCarrier: string;
+  ballCarrier: string | null;
   onOpenChange: (open: boolean) => void;
-  onBallCarrierChange: (playerId: string) => void;
+  onBallCarrierChange: (playerId: string | null) => void;
   onLoadPreset: (preset: Preset) => void;
   onGenerateCustom: (situation: string) => Promise<void>;
   generationStatus: GenerationStatus;
@@ -33,11 +33,45 @@ export function MenuBar({
   xTLoading,
 }: MenuBarProps) {
   const [customSituation, setCustomSituation] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageResponse, setImageResponse] = useState<any | null>(null);
   const attackers = players.filter((p) => p.type === 'attacker');
 
   const handleGenerate = async () => {
     if (!customSituation.trim()) return;
     await onGenerateCustom(customSituation);
+  };
+
+  const readFileAsBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // data:<mime>;base64,<data>
+      const idx = result.indexOf(',');
+      const base64 = idx >= 0 ? result.slice(idx + 1) : result;
+      resolve(base64);
+    };
+    reader.onerror = (e) => reject(e);
+    reader.readAsDataURL(file);
+  });
+
+  const handleUploadImage = async () => {
+    if (!imageFile) return;
+    setImageLoading(true);
+    setImageResponse(null);
+    try {
+      const base64 = await readFileAsBase64(imageFile);
+      const payload = { image: base64 };
+      const resp = await fetch('http://localhost:5137/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await resp.json();
+      setImageResponse(data);
+    } catch (err) {
+      console.error('Image upload failed', err);
+      setImageResponse({ error: String(err) });
+    } finally {
+      setImageLoading(false);
+    }
   };
 
   return (
@@ -91,8 +125,8 @@ export function MenuBar({
             Player with ball:
           </label>
           <select
-            value={ballCarrier}
-            onChange={(e) => onBallCarrierChange(e.target.value)}
+            value={ballCarrier ?? ''}
+            onChange={(e) => onBallCarrierChange(e.target.value || null)}
             style={{
               width: '100%',
               padding: '8px',
@@ -114,7 +148,41 @@ export function MenuBar({
 
         {/* Player color key */}
         <div style={{ marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Team Colors</h3>
+        {/* Image uploader */}
+        <div style={{ marginBottom: '18px' }}>
+          <h3 style={{ fontSize: '16px', marginBottom: '8px' }}>Upload Image</h3>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setImageFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)}
+            style={{ width: '100%', marginBottom: 8 }}
+          />
+          <button
+            onClick={handleUploadImage}
+            disabled={!imageFile || imageLoading}
+            style={{
+              padding: '8px 10px',
+              background: imageLoading ? '#6b7280' : '#06b6d4',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: !imageFile || imageLoading ? 'not-allowed' : 'pointer',
+              fontSize: '13px',
+              width: '100%'
+            }}
+          >
+            {imageLoading ? 'Uploading…' : 'Upload image to backend'}
+          </button>
+
+          {imageResponse && (
+            <div style={{ marginTop: 8, padding: 8, background: '#061025', borderRadius: 6, fontSize: 12 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Response</div>
+              <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 12 }}>{JSON.stringify(imageResponse, null, 2)}</pre>
+            </div>
+          )}
+        </div>
+
+        {/* Custom Situation Generator */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: COLORS.attacker }} />
