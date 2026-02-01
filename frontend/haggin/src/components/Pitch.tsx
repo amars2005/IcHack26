@@ -7,12 +7,32 @@ type PitchProps = {
   ballCarrier: string;
   onPlayerMove: (id: string, x: number, y: number) => void;
   scale?: number;
+  teamColor?: string;
+  opponentColor?: string;
 };
 
-export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1 }: PitchProps) {
+export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1, teamColor, opponentColor }: PitchProps) {
   const goalWidth = 20;
   const penaltyBoxWidth = 18;
   const penaltyBoxHeight = 44;
+  // Small goal-area box (approx. 6-yard box)
+  const smallBoxWidth = 6;
+  const smallBoxHeight = 20;
+  // Penalty arc geometry: radius and computed intersection with penalty box edge
+  const penaltySpotLeftX = 12;
+  const penaltyBoxLeftEdge = penaltyBoxWidth; // x coordinate where penalty area ends on left
+  const penaltyBoxRightEdge = PITCH_WIDTH - penaltyBoxWidth;
+  const penaltyArcR = 10;
+  const penaltyArcDx = penaltyBoxLeftEdge - penaltySpotLeftX; // should be positive (6)
+  const penaltyArcDy = Math.sqrt(Math.max(0, penaltyArcR * penaltyArcR - penaltyArcDx * penaltyArcDx));
+  const leftArcStartX = penaltyBoxLeftEdge;
+  const leftArcStartY = PITCH_HEIGHT / 2 - penaltyArcDy;
+  const leftArcEndX = penaltyBoxLeftEdge;
+  const leftArcEndY = PITCH_HEIGHT / 2 + penaltyArcDy;
+  const rightArcStartX = penaltyBoxRightEdge;
+  const rightArcStartY = PITCH_HEIGHT / 2 - penaltyArcDy;
+  const rightArcEndX = penaltyBoxRightEdge;
+  const rightArcEndY = PITCH_HEIGHT / 2 + penaltyArcDy;
 
   return (
     <svg
@@ -83,6 +103,9 @@ export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1 }: PitchPr
         strokeWidth={0.5}
       />
 
+      {/* Centre spot for kick-off */}
+      <circle cx={PITCH_WIDTH / 2} cy={PITCH_HEIGHT / 2} r={0.6} fill={COLORS.lines} />
+
       {/* Left goal line emphasis */}
       <line
         x1={0}
@@ -119,6 +142,46 @@ export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1 }: PitchPr
         fill="none"
       />
 
+      {/* Small goal-area boxes (6-yard boxes) */}
+      <rect
+        x={0}
+        y={PITCH_HEIGHT / 2 - smallBoxHeight / 2}
+        width={smallBoxWidth}
+        height={smallBoxHeight}
+        fill="none"
+        stroke={COLORS.lines}
+        strokeWidth={0.5}
+        rx={0.3}
+      />
+      <rect
+        x={PITCH_WIDTH - smallBoxWidth}
+        y={PITCH_HEIGHT / 2 - smallBoxHeight / 2}
+        width={smallBoxWidth}
+        height={smallBoxHeight}
+        fill="none"
+        stroke={COLORS.lines}
+        strokeWidth={0.5}
+        rx={0.3}
+      />
+
+      {/* Penalty spots */}
+      <circle cx={12} cy={PITCH_HEIGHT / 2} r={0.6} fill={COLORS.lines} />
+      <circle cx={PITCH_WIDTH - 12} cy={PITCH_HEIGHT / 2} r={0.6} fill={COLORS.lines} />
+
+      {/* Penalty arcs (the 'D') - drawn only outside the penalty box edges */}
+      <path
+        d={`M ${leftArcStartX} ${leftArcStartY} A ${penaltyArcR} ${penaltyArcR} 0 0 1 ${leftArcEndX} ${leftArcEndY}`}
+        stroke={COLORS.lines}
+        strokeWidth={0.5}
+        fill="none"
+      />
+      <path
+        d={`M ${rightArcStartX} ${rightArcStartY} A ${penaltyArcR} ${penaltyArcR} 0 0 0 ${rightArcEndX} ${rightArcEndY}`}
+        stroke={COLORS.lines}
+        strokeWidth={0.5}
+        fill="none"
+      />
+
       {/* Players */}
       {players.map((player) => (
         <Player
@@ -127,6 +190,8 @@ export function Pitch({ players, ballCarrier, onPlayerMove, scale = 1 }: PitchPr
           scale={scale}
           hasBall={player.id === ballCarrier}
           onDragEnd={onPlayerMove}
+          teamColor={teamColor}
+          opponentColor={opponentColor}
         />
       ))}
     </svg>
