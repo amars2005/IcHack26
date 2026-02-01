@@ -146,6 +146,25 @@ function App() {
         onCalculateXT={handleCalculateXT}
         xTResult={xTResult}
         xTLoading={xTLoading}
+        onImagePositions={(attackers, defenders, ballId) => {
+          // Update the pitch state
+          setPositions(attackers, defenders, ballId);
+          // Also update the players array that the Pitch component uses
+          const newPlayers: Player[] = [
+            ...attackers.map((a) => ({
+              id: a.id,
+              type: 'attacker' as const,
+              position: { x: a.x, y: a.y },
+            })),
+            ...defenders.map((d) => ({
+              id: d.id,
+              type: 'defender' as const,
+              position: { x: d.x, y: d.y },
+            })),
+          ];
+          setPlayers(newPlayers);
+          setBallCarrier(ballId);
+        }}
       />
     </div>
   );

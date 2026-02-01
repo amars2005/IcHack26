@@ -17,6 +17,11 @@ type MenuBarProps = {
   onCalculateXT: () => Promise<void>;
   xTResult: XTResult | null;
   xTLoading: boolean;
+  onImagePositions: (
+    attackers: Array<{ id: string; x: number; y: number }>,
+    defenders: Array<{ id: string; x: number; y: number }>,
+    ballId: string
+  ) => void;
 };
 
 export function MenuBar({
@@ -31,11 +36,13 @@ export function MenuBar({
   onCalculateXT,
   xTResult,
   xTLoading,
+  onImagePositions,
 }: MenuBarProps) {
   const [customSituation, setCustomSituation] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
-  const [imageResponse, setImageResponse] = useState<any | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const attackers = players.filter((p) => p.type === 'attacker');
 
   const handleGenerate = async () => {
@@ -43,14 +50,11 @@ export function MenuBar({
     await onGenerateCustom(customSituation);
   };
 
-  const readFileAsBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+  const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const result = reader.result as string;
-      // data:<mime>;base64,<data>
-      const idx = result.indexOf(',');
-      const base64 = idx >= 0 ? result.slice(idx + 1) : result;
-      resolve(base64);
+      // Return full data URL including the mime type header (e.g., data:image/png;base64,...)
+      resolve(reader.result as string);
     };
     reader.onerror = (e) => reject(e);
     reader.readAsDataURL(file);
@@ -59,17 +63,30 @@ export function MenuBar({
   const handleUploadImage = async () => {
     if (!imageFile) return;
     setImageLoading(true);
-    setImageResponse(null);
+    setImageError(null);
     try {
-      const base64 = await readFileAsBase64(imageFile);
-      const payload = { image: base64 };
+      // Create preview URL for the image
+      const previewUrl = URL.createObjectURL(imageFile);
+      setImagePreview(previewUrl);
+      
+      console.log('Uploading image...');
+      const dataUrl = await readFileAsDataUrl(imageFile);
+      const payload = { image: dataUrl };
       const resp = await fetch('http://localhost:5001/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await resp.json();
-      setImageResponse(data);
+      console.log('Response:', data);
+      
+      // Update pitch state if we got valid position data
+      if (data.attackers && data.defenders && data.ball_id) {
+        onImagePositions(data.attackers, data.defenders, data.ball_id);
+      } else if (data.error) {
+        setImageError(data.error);
+      }
     } catch (err) {
       console.error('Image upload failed', err);
       const msg = err instanceof Error ? err.message : String(err);
-      setImageResponse({ error: `Upload failed: ${msg}. Is the backend running on http://localhost:5001 ?` });
+      setImageError(`Upload failed: ${msg}`);
+      setImagePreview(null);
     } finally {
       setImageLoading(false);
     }
@@ -172,13 +189,22 @@ export function MenuBar({
               width: '100%'
             }}
           >
-            {imageLoading ? 'Uploading…' : 'Upload image to backend'}
+            {imageLoading ? 'Uploading…' : 'Upload Image'}
           </button>
 
-          {imageResponse && (
-            <div style={{ marginTop: 8, padding: 8, background: '#061025', borderRadius: 6, fontSize: 12 }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Response</div>
-              <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 12 }}>{JSON.stringify(imageResponse, null, 2)}</pre>
+          {imageError && (
+            <div style={{ marginTop: 8, padding: 8, background: '#7f1d1d', borderRadius: 6, fontSize: 12, color: '#fca5a5' }}>
+              {imageError}
+            </div>
+          )}
+
+          {imagePreview && (
+            <div style={{ marginTop: 8, borderRadius: 6, overflow: 'hidden' }}>
+              <img 
+                src={imagePreview} 
+                alt="Uploaded pitch" 
+                style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 6 }} 
+              />
             </div>
           )}
         </div>

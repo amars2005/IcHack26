@@ -4,7 +4,5 @@
 *.png
 **/__pycache__
 venv/
-__pycache__/.env
-**/__pycache__/
-.env
+**/.env
 **/node_modules/

@@ -15,6 +15,7 @@ URL = 'https://api.anthropic.com/v1/messages'
 IMAGE_PROMPT = """You are an expert football/soccer tactical analyst with advanced computer vision capabilities.
 Your task is to analyze an image of a football pitch (tactical diagram, heatmap, TV broadcast frame, or 2D plot) and convert it into EXACT (x, y) COORDINATES for 22 players according to a specific coordinate system.
 
+If the goalkeepers are not visble in the image, you MUST place them uniformly in their respective goal areas based on standard football tactics.
 ═══════════════════════════════════════════════════════════════════
 1. VISUAL ANALYSIS & MAPPING
 ═══════════════════════════════════════════════════════════════════
@@ -446,58 +447,93 @@ def start_app():
     @app.route("/image", methods=['POST'])
     def image_positions():
         if request.method == "POST":
-            req_data = request.get_json()
-            base64_image = req_data.get("image")
-            media_type = req_data.get("media_type", "image/jpeg")
+            try:
+                req_data = request.get_json()
+                raw_input = req_data.get("image", "")
 
-            headers = {
-                'Content-Type': 'application/json',
-                'x-api-key': dotenv.get_key(".env", "API_KEY"),
-                'anthropic-version': '2023-06-01',
-            }
+                if "base64," in raw_input:
+                    # Split on "base64," and take the data part
+                    parts = raw_input.split("base64,", 1)
+                    header = parts[0]
+                    base64_data = parts[1] if len(parts) > 1 else ""
 
-            payload = {
-                'model': 'claude-sonnet-4-5',  # Ensure you use a vision-capable model
-                'max_tokens': 2000,
-                'system': IMAGE_PROMPT,
-                'messages': [
-                    {
-                        'role': 'user',
-                        'content': [
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": media_type,
-                                    "data": base64_image
+                    if "image/png" in header:
+                        media_type = "image/png"
+                    elif "image/jpeg" in header or "image/jpg" in header:
+                        media_type = "image/jpeg"
+                    elif "image/webp" in header:
+                        media_type = "image/webp"
+                    elif "image/gif" in header:
+                        media_type = "image/gif"
+                    else:
+                        media_type = "image/jpeg"
+                else:
+                    base64_data = raw_input
+                    media_type = req_data.get("media_type", "image/jpeg")
+
+                # Strip any whitespace from base64 data
+                base64_data = base64_data.strip()
+
+                print(
+                    f"Sending to Claude -> Type: {media_type} | Length: {len(base64_data)}")
+
+                headers = {
+                    'Content-Type': 'application/json',
+                    'x-api-key': dotenv.get_key(".env", "API_KEY"),
+                    'anthropic-version': '2023-06-01',
+                }
+
+                payload = {
+                    'model': 'claude-sonnet-4-5',
+                    'max_tokens': 2000,
+                    'system': IMAGE_PROMPT,
+                    'messages': [
+                        {
+                            'role': 'user',
+                            'content': [
+                                {
+                                    "type": "image",
+                                    "source": {
+                                        "type": "base64",
+                                        "media_type": media_type,
+                                        "data": base64_data
+                                    }
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "Analyze this tactical image and generate the player positions JSON."
                                 }
-                            },
-                            {
-                                "type": "text",
-                                "text": "Analyze this tactical image and generate the player positions JSON."
-                            }
-                        ]
-                    }
-                ],
-                'temperature': 0.5  # Lower temperature for better spatial precision
-            }
+                            ]
+                        }
+                    ],
+                    'temperature': 0.5
+                }
 
-            response = requests.post(URL, headers=headers, json=payload)
+                response = requests.post(URL, headers=headers, json=payload)
 
-            if response.status_code != 200:
-                return response.json(), response.status_code
+                if response.status_code != 200:
+                    error_detail = response.text
+                    print(
+                        f"Anthropic API Error ({response.status_code}): {error_detail}")
+                    try:
+                        error_json = response.json()
+                        return {"error": f"Anthropic API error: {error_json.get('error', {}).get('message', error_detail)}"}, response.status_code
+                    except:
+                        return {"error": f"Anthropic API error: {error_detail}"}, response.status_code
 
-            anthropic_data = response.json()
-            raw_content = anthropic_data['content'][0]['text']
+                anthropic_data = response.json()
+                raw_content = anthropic_data['content'][0]['text']
 
-            valid_data, error_msg, status_code = validate_and_parse_tactical_json(
-                raw_content)
+                valid_data, error_msg, status_code = validate_and_parse_tactical_json(
+                    raw_content)
 
-            if valid_data:
-                print("Image analysis (validated): Success")
-                return valid_data
-            else:
-                print("Image validation error:", error_msg)
-                return {"error": error_msg, "raw_response": raw_content}, status_code
+                if valid_data:
+                    return valid_data
+                else:
+                    return {"error": error_msg, "raw_response": raw_content}, status_code
+
+            except Exception as e:
+                print(f"Server Error: {str(e)}")
+                return {"error": str(e)}, 500
 
     return app
