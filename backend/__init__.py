@@ -11,9 +11,7 @@ import joblib
 import lightgbm as lgb
 dotenv.load_dotenv()
 
-# Model mode: "simple" uses LightGBM, "nn" uses Neural Network, "complex" uses polar transformation
-MODEL_MODE = "nn"  # Change to "nn" for Neural Network model
-
+MODEL_MODE = 'nn'
 SYSTEM_PROMPT = """You are an expert football/soccer tactical analyst. Your task is to position EXACTLY 22 players (11 attacking, 11 defending) on a football pitch based on the described situation.
 
 ═══════════════════════════════════════════════════════════════════
@@ -207,6 +205,90 @@ def start_app():
     CORS(app, origins=["http://localhost:5173",
          "http://localhost:5175"], supports_credentials=True)
 
+    @app.route("/test", methods=["POST"])
+    def test():
+        """
+        Test route to verify backend is operational.
+        """
+        if request.method == "POST":
+            data = request.get_json()
+
+            if not data:
+                return {"error": "No data provided"}, 400
+
+            #  process data
+            attackers = data.get("attackers", [])
+            defenders = data.get("defenders", [])
+            keepers = data.get("keepers", [])
+
+            ball_id = data["ball_id"]
+            ball_position = next(
+                ({"x": p["x"], "y": p["y"]}
+                 for p in attackers if p["id"] == ball_id),
+                None)
+
+            if ball_position is None:
+                raise ValueError(
+                    "Ball position could not be determined from ball_id.")
+
+            data_dict = {
+                "ball_x": ball_position['x'],
+                "ball_y": ball_position['y'],
+            }
+
+            # Attackers: p0 through p9 (10 outfield players)
+            for i in range(len(attackers)):
+                data_dict[f"p{i}_x"] = attackers[i]["x"]
+                data_dict[f"p{i}_y"] = attackers[i]["y"]
+                data_dict[f'p{i}_team'] = 1  # attacker
+
+            # Defenders: p10 through p19 (10 outfield players)
+            for i in range(len(defenders)):
+                data_dict[f"p{i+10}_x"] = defenders[i]["x"]
+                data_dict[f"p{i+10}_y"] = defenders[i]["y"]
+                data_dict[f'p{i+10}_team'] = 0  # defender
+
+            data_dict[f"keeper_1_x"] = keepers[0]["x"]
+            data_dict[f"keeper_1_y"] = keepers[0]["y"]
+            # keeper for team in entry [0]
+            data_dict[f'keeper_1_team'] = 1  # attacker keeper
+
+            data_dict[f"keeper_2_x"] = keepers[1]["x"]
+            data_dict[f"keeper_2_y"] = keepers[1]["y"]
+            # keeper for team in entry [1]
+            data_dict[f'keeper_2_team'] = 0  # defender keeper
+
+            if MODEL_MODE == "nn":
+                from backend.generalpv.expectedThreatModelNN import ExpectedThreatModelNN
+                xT = ExpectedThreatModelNN()
+                xT.load_model()
+            else:
+                from backend.generalpv.expectedThreatModel import ExpectedThreatModel
+                xT = ExpectedThreatModel(skip_training=True)
+                xT.load_model(os.path.join(os.path.dirname(
+                    __file__), "models/xt_model.pkl"))
+
+            pxT_value = xT.calculate_expected_threat(**data_dict)
+
+            # Generate heatmap if supported (NN model only)
+            heatmap_data = None
+            if MODEL_MODE == "nn" and hasattr(xT, 'generate_heatmap'):
+                try:
+                    # Use 48x32 grid for higher resolution
+                    heatmap_data = xT.generate_heatmap(
+                        grid_size=(48, 32), **data_dict)
+                except Exception as e:
+                    print(f"Heatmap generation failed: {e}")
+                    heatmap_data = None
+
+            print("Predicted xT:", pxT_value)
+
+            response_data = {
+                "xT": pxT_value,
+                "heatmap": heatmap_data
+            }
+            return json.dumps(response_data)
+
     @app.route("/", methods=["POST"])
     def predictions():
         """
@@ -224,11 +306,9 @@ def start_app():
             keepers = data.get("keepers", [])
 
             ball_id = data["ball_id"]
-            # Search in attackers and keepers for the ball carrier
-            all_attacking_players = attackers + [k for k in keepers if k.get("team") == 1]
             ball_position = next(
                 ({"x": p["x"], "y": p["y"]}
-                 for p in all_attacking_players if p["id"] == ball_id),
+                 for p in attackers if p["id"] == ball_id),
                 None)
 
             if ball_position is None:
@@ -236,64 +316,81 @@ def start_app():
                     "Ball position could not be determined from ball_id.")
 
             data_dict = {
-                "start_x": ball_position['x'],
-                "start_y": ball_position['y'],
+                "ball_x": ball_position['x'],
+                "ball_y": ball_position['y'],
             }
 
-            for i in range(10):  #  for 10 outfield players per team
+            # Attackers: p0 through p9 (10 outfield players)
+            for i in range(len(attackers)):
                 data_dict[f"p{i}_x"] = attackers[i]["x"]
                 data_dict[f"p{i}_y"] = attackers[i]["y"]
                 data_dict[f'p{i}_team'] = 1  # attacker
 
+            # Defenders: p10 through p19 (10 outfield players)
+            for i in range(len(defenders)):
                 data_dict[f"p{i+10}_x"] = defenders[i]["x"]
                 data_dict[f"p{i+10}_y"] = defenders[i]["y"]
                 data_dict[f'p{i+10}_team'] = 0  # defender
 
-            data_dict[f"keeper1_x"] = keepers[0]["x"]
-            data_dict[f"keeper1_y"] = keepers[0]["y"]
+            data_dict[f"keeper_1_x"] = keepers[0]["x"]
+            data_dict[f"keeper_1_y"] = keepers[0]["y"]
             # keeper for team in entry [0]
-            data_dict[f'keeper1_team'] = 1  # attacker keeper
+            data_dict[f'keeper_1_team'] = 1  # attacker keeper
 
-            data_dict[f"keeper2_x"] = keepers[1]["x"]
-            data_dict[f"keeper2_y"] = keepers[1]["y"]
+            data_dict[f"keeper_2_x"] = keepers[1]["x"]
+            data_dict[f"keeper_2_y"] = keepers[1]["y"]
             # keeper for team in entry [1]
-            data_dict[f'keeper2_team'] = 0  # defender keeper
+            data_dict[f'keeper_2_team'] = 0  # defender keeper
 
-            # Load the appropriate model based on MODEL_MODE
-            if MODEL_MODE == "nn":
-                from backend.generalpv.expectedThreatModelNN import ExpectedThreatModelNN
-                xT = ExpectedThreatModelNN()
-                xT.load_model()
-            elif MODEL_MODE == "simple":
-                from backend.generalpv.expectedThreatModelSimple import ExpectedThreatModelSimple
-                xT = ExpectedThreatModelSimple(skip_training=True)
-                xT.load_model(os.path.join(os.path.dirname(
-                    __file__), "models/xt_model_simple.pkl"))
-            else:
-                from backend.generalpv.expectedThreatModel import ExpectedThreatModel
-                xT = ExpectedThreatModel(skip_training=True)
-                xT.load_model(os.path.join(os.path.dirname(
-                    __file__), "models/xt_model.pkl"))
+            # ---------------- data processing done for required dict format: data_dict----------------#
 
-            pxT_value = xT.calculate_expected_threat(**data_dict)
-            
-            # Generate heatmap if supported (NN model only)
-            heatmap_data = None
-            if MODEL_MODE == "nn" and hasattr(xT, 'generate_heatmap'):
-                try:
-                    # Use 48x32 grid for higher resolution
-                    heatmap_data = xT.generate_heatmap(grid_size=(48, 32), **data_dict)
-                except Exception as e:
-                    print(f"Heatmap generation failed: {e}")
-                    heatmap_data = None
+            actions = {}
+            # SHOOT MODEL
+            from backend.generalpv.xg import ExpectedGoalModel
+            xg_model = ExpectedGoalModel(skip_training=True)
 
-            print("Predicted xT:", pxT_value)
-            
-            response_data = {
-                "xT": pxT_value,
-                "heatmap": heatmap_data
-            }
-            return json.dumps(response_data)
+            model_path = os.path.join(os.path.dirname(os.path.dirname(
+                __file__)), "models/xg_model_360.pkl")
+            xg_model.load_model(model_path)
+
+            xg_value = xg_model.calculate_expected_goal(**data_dict)
+            actions["shoot"] = {"xG": xg_value}
+
+            # CARRY MODEL
+            forecasted_xT = None
+            actions["carry"] = {"xT": forecasted_xT}
+
+            # PASS MODEL
+            # should pass ball position to model ie:
+            ball_pos_tuple = (ball_position['x'], ball_position['y'])
+
+            for i in range(len(attackers)):
+                player_id = attackers[i]["id"]
+
+                if player_id == ball_id:
+                    continue
+                # run model evaluations to pass to each player
+
+                # player i position (from attackers) ie
+                i_pos_tuple = (attackers[i]["x"], attackers[i]["y"])
+
+                #  process to models
+                pass_xT = None
+
+                from backend.generalpv.passProbabilityModel import PassProbabilityModel
+                model = PassProbabilityModel(skip_training=True)
+                model_path = os.path.join(os.path.dirname(os.path.dirname(
+                    __file__)), "models/pass_probability_model.pkl")
+                model.load_model(model_path)
+                pass_likelihood = model.calculate_pass_probability(
+                    start_x=ball_pos_tuple[0], start_y=ball_pos_tuple[1], end_x=i_pos_tuple[0], end_y=i_pos_tuple[1], team_id=1, **data_dict)
+
+                actions[f"pass_to_{player_id}"] = {
+                    "xT": pass_xT, "P(success)": pass_likelihood}
+
+            print("Predicted actions:", actions)
+
+            return json.dumps(actions)
 
     @app.route("/generate-positions", methods=["GET"])
     def generate_positions():
