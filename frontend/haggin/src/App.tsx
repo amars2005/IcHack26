@@ -7,7 +7,7 @@ import type { GenerationStatus } from './types';
 import { INITIAL_PLAYERS, INITIAL_BALL_CARRIER, PITCH_WIDTH, PITCH_HEIGHT } from './constants';
 import { generateSituation, AIError, fetchPlayerMetrics } from './llm';
 import { PlayerInfo } from './components/PlayerInfo';
-import BrandingImage from './components/BrandingImage';
+import BrandingImage from './components/BrandingImage.tsx';
 
 function App() {
   const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
