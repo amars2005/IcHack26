@@ -284,9 +284,13 @@ def start_app():
 
                 #  process to models
                 pass_xT = None
-                pass_likelyhood = None
+
+                from backend.generalpv.passProbabilityModel import PassProbabilityModel
+                model = PassProbabilityModel(skip_training=True)
+                pass_likelihood = model.calculate_pass_probability(**data_dict)
+
                 actions[f"pass_to_{i}"] = {
-                    "xT": pass_xT, "P(success)": pass_likelyhood}
+                    "xT": pass_xT, "P(success)": pass_likelihood}
 
             return json.dumps(actions)
 
