@@ -357,15 +357,13 @@ def start_app():
                 data_dict[f"p{i+10}_y"] = defenders[i]["y"]
                 data_dict[f'p{i+10}_team'] = 0  # defender
 
-            data_dict[f"keeper_1_x"] = keepers[0]["x"]
-            data_dict[f"keeper_1_y"] = keepers[0]["y"]
-            # keeper for team in entry [0]
-            data_dict[f'keeper_1_team'] = 1  # attacker keeper
+            data_dict["keeper1_x"] = keepers[0]["x"]
+            data_dict["keeper1_y"] = keepers[0]["y"]
+            data_dict['keeper1_team'] = 1  # attacker keeper
 
-            data_dict[f"keeper_2_x"] = keepers[1]["x"]
-            data_dict[f"keeper_2_y"] = keepers[1]["y"]
-            # keeper for team in entry [1]
-            data_dict[f'keeper_2_team'] = 0  # defender keeper
+            data_dict["keeper2_x"] = keepers[1]["x"]
+            data_dict["keeper2_y"] = keepers[1]["y"]
+            data_dict['keeper2_team'] = 0  # defender keeper
 
             # ---------------- data processing done for required dict format: data_dict----------------#
 
@@ -381,8 +379,20 @@ def start_app():
             actions["shoot"] = {"xG": xg_value}
 
             # CARRY MODEL
-            forecasted_xT = None
-            actions["carry"] = {"xT": forecasted_xT}
+            from backend.generalpv.carryModel import CarryModel
+            carry_model = CarryModel()
+            if carry_model.is_trained:
+                carry_result = carry_model.calculate_carry_score(data_dict)
+                if carry_result:
+                    actions["carry"] = {
+                        "xT": carry_result["predicted_xt"],
+                        "xT_gain": carry_result["xt_gain"],
+                        "score": carry_result["score"]
+                    }
+                else:
+                    actions["carry"] = {"xT": None}
+            else:
+                actions["carry"] = {"xT": None}
 
             # PASS MODEL - Using PassScoreModel for comprehensive evaluation
             from backend.generalpv.passScoreModel import PassScoreModel
