@@ -17,6 +17,9 @@ type MenuBarProps = {
   onCalculateXT: () => Promise<void>;
   xTResult: XTResult | null;
   xTLoading: boolean;
+  showHeatmap: boolean;
+  onToggleHeatmap: () => void;
+  hasHeatmapData: boolean;
 };
 
 export function MenuBar({
@@ -31,6 +34,9 @@ export function MenuBar({
   onCalculateXT,
   xTResult,
   xTLoading,
+  showHeatmap,
+  onToggleHeatmap,
+  hasHeatmapData,
 }: MenuBarProps) {
   const [customSituation, setCustomSituation] = useState('');
   const attackers = players.filter((p) => p.type === 'attacker');
@@ -296,6 +302,48 @@ export function MenuBar({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Heatmap toggle */}
+          {hasHeatmapData && (
+            <div style={{ marginTop: '12px' }}>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px',
+                cursor: 'pointer',
+                fontSize: '14px',
+              }}>
+                <input
+                  type="checkbox"
+                  checked={showHeatmap}
+                  onChange={onToggleHeatmap}
+                  style={{ 
+                    width: '18px', 
+                    height: '18px',
+                    cursor: 'pointer',
+                  }}
+                />
+                Show xT Heatmap
+              </label>
+              <div style={{ 
+                marginTop: '8px', 
+                fontSize: '11px', 
+                color: '#9ca3af',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}>
+                <span style={{ 
+                  display: 'inline-block', 
+                  width: '60px', 
+                  height: '8px', 
+                  background: 'linear-gradient(to right, blue, cyan, lime, yellow, red)',
+                  borderRadius: '2px',
+                }} />
+                <span>Low → High xT</span>
+              </div>
             </div>
           )}
         </div>

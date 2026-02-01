@@ -11,6 +11,9 @@ import joblib
 import lightgbm as lgb
 dotenv.load_dotenv()
 
+# Model mode: "simple" uses LightGBM, "nn" uses Neural Network, "complex" uses polar transformation
+MODEL_MODE = "nn"  # Change to "nn" for Neural Network model
+
 SYSTEM_PROMPT = """You are an expert football/soccer tactical analyst. Your task is to position EXACTLY 22 players (11 attacking, 11 defending) on a football pitch based on the described situation.
 
 ═══════════════════════════════════════════════════════════════════
@@ -220,9 +223,11 @@ def start_app():
             print(attackers)
 
             ball_id = data["ball_id"]
+            # Search in attackers and keepers for the ball carrier
+            all_attacking_players = attackers + [k for k in keepers if k.get("team") == 1]
             ball_position = next(
                 ({"x": p["x"], "y": p["y"]}
-                 for p in attackers if p["id"] == ball_id),
+                 for p in all_attacking_players if p["id"] == ball_id),
                 None)
 
             if ball_position is None:
@@ -230,47 +235,64 @@ def start_app():
                     "Ball position could not be determined from ball_id.")
 
             data_dict = {
-                "ball_x": ball_position['x'],
-                "ball_y": ball_position['y'],
+                "start_x": ball_position['x'],
+                "start_y": ball_position['y'],
             }
 
-            for i in range(10):  #  for 11 players
-                data_dict[f"p_{i}_x"] = attackers[i]["x"]
-                data_dict[f"p_{i}_y"] = attackers[i]["y"]
-                data_dict[f'p_{i}_team'] = 1  # attacker
+            for i in range(10):  #  for 10 outfield players per team
+                data_dict[f"p{i}_x"] = attackers[i]["x"]
+                data_dict[f"p{i}_y"] = attackers[i]["y"]
+                data_dict[f'p{i}_team'] = 1  # attacker
 
-                data_dict[f"p_{i+11}_x"] = defenders[i]["x"]
-                data_dict[f"p_{i+11}_y"] = defenders[i]["y"]
-                data_dict[f'p_{i+11}_team'] = 0  # defender
+                data_dict[f"p{i+10}_x"] = defenders[i]["x"]
+                data_dict[f"p{i+10}_y"] = defenders[i]["y"]
+                data_dict[f'p{i+10}_team'] = 0  # defender
 
-            data_dict[f"keeper_1_x"] = keepers[0]["x"]
-            data_dict[f"keeper_1_y"] = keepers[0]["y"]
+            data_dict[f"keeper1_x"] = keepers[0]["x"]
+            data_dict[f"keeper1_y"] = keepers[0]["y"]
             # keeper for team in entry [0]
-            data_dict[f'keeper_1_team'] = 1  # attacker keeper
+            data_dict[f'keeper1_team'] = 1  # attacker keeper
 
-            data_dict[f"keeper_2_x"] = keepers[1]["x"]
-            data_dict[f"keeper_2_y"] = keepers[1]["y"]
+            data_dict[f"keeper2_x"] = keepers[1]["x"]
+            data_dict[f"keeper2_y"] = keepers[1]["y"]
             # keeper for team in entry [1]
-            data_dict[f'keeper_2_team'] = 0  # defender keeper
+            data_dict[f'keeper2_team'] = 0  # defender keeper
 
-            from backend.generalpv.expectedThreatModel import ExpectedThreatModel
-            xT = ExpectedThreatModel()
-            xT.load_model(os.path.join(os.path.dirname(
-                __file__), "models/xT_model.pkl"))
+            # Load the appropriate model based on MODEL_MODE
+            if MODEL_MODE == "nn":
+                from backend.generalpv.expectedThreatModelNN import ExpectedThreatModelNN
+                xT = ExpectedThreatModelNN()
+                xT.load_model()
+            elif MODEL_MODE == "simple":
+                from backend.generalpv.expectedThreatModelSimple import ExpectedThreatModelSimple
+                xT = ExpectedThreatModelSimple(skip_training=True)
+                xT.load_model(os.path.join(os.path.dirname(
+                    __file__), "models/xt_model_simple.pkl"))
+            else:
+                from backend.generalpv.expectedThreatModel import ExpectedThreatModel
+                xT = ExpectedThreatModel(skip_training=True)
+                xT.load_model(os.path.join(os.path.dirname(
+                    __file__), "models/xt_model.pkl"))
 
             pxT_value = xT.calculate_expected_threat(**data_dict)
+            
+            # Generate heatmap if supported (NN model only)
+            heatmap_data = None
+            if MODEL_MODE == "nn" and hasattr(xT, 'generate_heatmap'):
+                try:
+                    # Use 48x32 grid for higher resolution
+                    heatmap_data = xT.generate_heatmap(grid_size=(48, 32), **data_dict)
+                except Exception as e:
+                    print(f"Heatmap generation failed: {e}")
+                    heatmap_data = None
 
-            # random prediction generations
-            # import numpy as np
-            # xT = np.random.rand(12)
-            # p_success = np.random.rand(12)
-            # action = np.random.choice(
-            #     ["pass", "carry", "shoot"], size=12
-            # )
-
-            # evaluations = {action[i]: {
-            #     "xT": xT[i], "P(success)": p_success[i]} for i in range(12)}
-            return json.dumps(pxT_value)
+            print("Predicted xT:", pxT_value)
+            
+            response_data = {
+                "xT": pxT_value,
+                "heatmap": heatmap_data
+            }
+            return json.dumps(response_data)
 
     @app.route("/generate-positions", methods=["GET"])
     def generate_positions():
