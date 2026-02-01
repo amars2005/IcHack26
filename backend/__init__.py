@@ -206,9 +206,11 @@ def start_app():
 
     @app.route("/", methods=["POST"])
     def predictions():
+        """
+        Generate predictions for best actions given all player positions.
+        """
         if request.method == "POST":
             data = request.get_json()
-            print(data)
 
             if not data:
                 return {"error": "No data provided"}, 400
@@ -217,7 +219,6 @@ def start_app():
             attackers = data.get("attackers", [])
             defenders = data.get("defenders", [])
             keepers = data.get("keepers", [])
-            print(attackers)
 
             ball_id = data["ball_id"]
             ball_position = next(
@@ -253,28 +254,40 @@ def start_app():
             # keeper for team in entry [1]
             data_dict[f'keeper_2_team'] = 0  # defender keeper
 
-            from backend.generalpv.expectedThreatModel import ExpectedThreatModel
-            xT = ExpectedThreatModel()
-            xT.load_model(os.path.join(os.path.dirname(
-                __file__), "models/xT_model.pkl"))
+            # ---------------- data processing done for required dict format: data_dict----------------#
 
-            pxT_value = xT.calculate_expected_threat(**data_dict)
+            actions = {}
+            # SHOOT MODEL
+            xG = None
+            actions["shoot"] = {"xG": xG}
 
-            # random prediction generations
-            # import numpy as np
-            # xT = np.random.rand(12)
-            # p_success = np.random.rand(12)
-            # action = np.random.choice(
-            #     ["pass", "carry", "shoot"], size=12
-            # )
+            # CARRY MODEL
+            forecasted_xT = None
+            actions["carry"] = {"xT": forecasted_xT}
 
-            # evaluations = {action[i]: {
-            #     "xT": xT[i], "P(success)": p_success[i]} for i in range(12)}
-            return json.dumps(pxT_value)
+            # PASS MODEL
+            # should pass ball position to model ie:
+            ball_pos_tuple = (ball_position['x'], ball_position['y'])
+
+            for i in range(11):
+                # run model evaluations to pass to each player
+
+                # player i position (from attackers) ie
+                i_pos_tuple = (attackers[i]["x"], attackers[i]["y"])
+
+                #  process to models
+                pass_xT = None
+                pass_likelyhood = None
+                actions[f"pass_to_{i}"] = {
+                    "xT": pass_xT, "P(success)": pass_likelyhood}
+
+            return json.dumps(actions)
 
     @app.route("/generate-positions", methods=["GET"])
     def generate_positions():
-        print("Generating positions...")
+        """
+        Call Claude to generate player positions based on input situation
+        """
         if request.method == "GET":
             situation = request.args.get("situation", "")
 
