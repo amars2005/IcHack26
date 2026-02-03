@@ -108,7 +108,11 @@ function App() {
       const attackers = players.filter((p) => p.type === 'attacker').map((p) => ({ x: p.position.x, y: p.position.y, id: p.id, team: 1 }));
       const defenders = players.filter((p) => p.type === 'defender').map((p) => ({ x: p.position.x, y: p.position.y, id: p.id, team: 0 }));
       const keepers = players.filter(p => p.id === '1' || p.id === 'd1').map(p => ({ x: p.position.x, y: p.position.y, id: p.id, team: p.id === '1' ? 1 : 0 }));
-      const resp = await fetch('http://localhost:5001/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ attackers, defenders, keepers, ball_id: ballCarrier }) });
+      const resp = await fetch('/api/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attackers, defenders, keepers, ball_id: ballCarrier })
+      });
       setXTResult(await resp.json());
     } catch (err) { setXTResult({ error: 'xT failed' }); }
     finally { setXTLoading(false); }
@@ -120,7 +124,11 @@ function App() {
       const attackers = players.filter((p) => p.type === 'attacker').map((p) => ({ x: p.position.x, y: p.position.y, id: p.id, team: 1 }));
       const defenders = players.filter((p) => p.type === 'defender').map((p) => ({ x: p.position.x, y: p.position.y, id: p.id, team: 0 }));
       const keepers = players.filter(p => p.id === '1' || p.id === 'd1').map(p => ({ x: p.position.x, y: p.position.y, id: p.id, team: p.id === '1' ? 1 : 0 }));
-      const resp = await fetch('http://localhost:5001/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ attackers, defenders, keepers, ball_id: ballCarrier }) });
+      const resp = await fetch('/api/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attackers, defenders, keepers, ball_id: ballCarrier })
+      });
       const result = await resp.json();
       setTestResult(result);
       console.log('Test endpoint result:', result);

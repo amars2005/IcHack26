@@ -1,0 +1,29 @@
+# Web Framework
+flask
+flask-cors
+
+# Data Processing
+pandas
+numpy
+
+# Machine Learning
+scikit-learn
+lightgbm
+xgboost
+joblib
+
+# Deep Learning
+torch
+
+# Data Visualization
+matplotlib
+tqdm
+
+# StatsBomb Data
+statsbombpy
+
+# HTTP Requests
+requests
+
+# Environment Variables
+python-dotenv
