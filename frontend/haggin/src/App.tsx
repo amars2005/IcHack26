@@ -16,7 +16,6 @@ function App() {
   const [aiRefusalMessage, setAiRefusalMessage] = useState<string | null>(null);
   const [customSituation, setCustomSituation] = useState('');
   const [selectedPlayerPosition, setSelectedPlayerPosition] = useState<{ x: number; y: number } | null>(null);
-  const [selectedMetrics, setSelectedMetrics] = useState<Record<string, number> | null>(null);
   const [isPitchFullscreen, setIsPitchFullscreen] = useState(false);
   const pitchContainerRef = useRef<HTMLDivElement | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,8 +23,6 @@ function App() {
   const [xTLoading, setXTLoading] = useState(false);
   const [testResult, setTestResult] = useState<any | null>(null);
   const [testLoading, setTestLoading] = useState(false);
-  type Move = { id: string; type: 'pass' | 'shoot' | 'dribble' | 'carry' | 'other'; targetId?: string | null; description: string; score?: number };
-  const [moves, setMoves] = useState<Move[]>([]);
   const [showAllOptions, setShowAllOptions] = useState(false);
   
   const [teamName, setTeamName] = useState("FC Haggin'");
@@ -45,8 +42,6 @@ function App() {
   };
   const opponentColor = invertHex(teamColor);
 
-  const attackers = players.filter((p) => p.type === 'attacker');
-
   const handlePlayerMove = (id: string, x: number, y: number) => {
     const clampedX = Math.max(0, Math.min(PITCH_WIDTH, x));
     const clampedY = Math.max(0, Math.min(PITCH_HEIGHT, y));
@@ -57,28 +52,11 @@ function App() {
     setBallCarrier(id);
   };
 
-  const fetchSuggestedMoves = async () => {
-    // Placeholder: generate simple moves based on current players and ball carrier.
-    // Backend will replace this with a real API returning structured Move[].
-    const attackersList = players.filter(p => p.type === 'attacker' && p.id !== ballCarrier);
-    const sample: Move[] = [];
-    // Suggest up to 4 passes to nearest attackers + 1 shoot/dribble option
-    for (let i = 0; i < Math.min(4, attackersList.length); i++) {
-      const p = attackersList[i];
-      sample.push({ id: `m-pass-${p.id}`, type: 'pass', targetId: p.id, description: `Pass to #${p.id}`, score: 0.5 - i * 0.05 });
-    }
-    sample.push({ id: 'm-dribble', type: 'dribble', description: 'Dribble forward', score: 0.3 });
-    setMoves(sample.slice(0,5));
-  };
-
   useEffect(() => {
     const p = players.find((pl) => pl.id === ballCarrier);
     setSelectedPlayerPosition(p ? p.position : null);
-    setSelectedMetrics(null);
     if (!ballCarrier) return;
-    let mounted = true;
-    fetchPlayerMetrics(ballCarrier).then((m) => { if (mounted) setSelectedMetrics(m); });
-    return () => { mounted = false; };
+    fetchPlayerMetrics(ballCarrier);
   }, [ballCarrier, players]);
 
   const handleLoadPreset = (preset: Preset) => {
@@ -343,14 +321,10 @@ function App() {
                     options.push({ id: `pass_${p.playerId}`, label: `Pass to #${p.playerId}`, desc: `${(p.probability * 100).toFixed(0)}% success`, value: p.score ?? 0, kind: 'pass', meta: p });
                   });
 
-                  const dribbleMove = moves.find(m => m.type === 'dribble');
                   if (xTResult.dribble) options.push({ id: 'dribble', label: 'Dribble', desc: 'Dribble option', value: xTResult.dribble.score ?? 0, kind: 'dribble' });
-                  else if (dribbleMove) options.push({ id: 'dribble', label: 'Dribble', desc: dribbleMove.description, value: dribbleMove.score ?? 0, kind: 'dribble' });
 
                   // Include carry action if present in xT results or suggested moves
-                  const carryMove = moves.find(m => m.type === 'carry');
                   if (xTResult.carry) options.push({ id: 'carry', label: 'Carry', desc: 'Carry the ball forward', value: xTResult.carry.score ?? 0, kind: 'carry' });
-                  else if (carryMove) options.push({ id: 'carry', label: 'Carry', desc: carryMove.description, value: carryMove.score ?? 0, kind: 'carry' });
 
                   options.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
                   const topOptions = options.slice(0, 4);

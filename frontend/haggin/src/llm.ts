@@ -1,7 +1,5 @@
 import type { Player } from './types';
 
-// Backend API configuration
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
 
 interface BackendResponse {
   attackers: Array<{ x: number; y: number; id: string }>;
